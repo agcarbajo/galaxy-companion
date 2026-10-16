@@ -5,7 +5,7 @@ import runpy
 import sys
 from unittest.mock import patch
 
-source = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1] / "packaging/ubuntu-gts9u-companion/usr/libexec/tab-companion-hardware"
+source = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1] / "packaging/galaxy-companion/usr/libexec/galaxy-companion-hardware"
 module = runpy.run_path(str(source))
 capture = module["KeyboardCapture"]()
 with patch.object(module["time"], "monotonic", return_value=100):

@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 source = Path(sys.argv.pop(1)) if len(sys.argv) > 1 else (
     Path(__file__).resolve().parents[1]
-    / "packaging/ubuntu-gts9u-companion/usr/libexec/tab-companion-hardware")
+    / "packaging/galaxy-companion/usr/libexec/galaxy-companion-hardware")
 module = runpy.run_path(str(source))
 Service = module["HardwareService"]
 

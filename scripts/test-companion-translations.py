@@ -14,16 +14,16 @@ from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion/tab_companion"
+SOURCE = ROOT / "packaging/galaxy-companion/usr/lib/galaxy-companion/galaxy_companion"
 if len(sys.argv) > 1:
     SOURCE = Path(sys.argv.pop(1))
 sys.path.insert(0, str(SOURCE.parent))
-from tab_companion import i18n
-from tab_companion.fingerprint_translations import ES as FP_ES
-from tab_companion.update_translations import ES as UP_ES
-from tab_companion.fingerprint_languages import TRANSLATIONS as FP
-from tab_companion.update_languages import TRANSLATIONS as UP
-from tab_companion.keyboard_translations import TRANSLATIONS as KB
+from galaxy_companion import i18n
+from galaxy_companion.fingerprint_translations import ES as FP_ES
+from galaxy_companion.update_translations import ES as UP_ES
+from galaxy_companion.fingerprint_languages import TRANSLATIONS as FP
+from galaxy_companion.update_languages import TRANSLATIONS as UP
+from galaxy_companion.keyboard_translations import TRANSLATIONS as KB
 
 
 def fields(text):
@@ -100,13 +100,13 @@ class TranslationTests(unittest.TestCase):
 
 
 class KeyChooserTests(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get("TAB_COMPANION_GTK_TEST"), "Requires an active GTK session")
+    @unittest.skipUnless(os.environ.get("GALAXY_COMPANION_GTK_TEST"), "Requires an active GTK session")
     def test_real_gtk_chooser(self):
         import gi
         gi.require_version("Adw", "1")
         from gi.repository import Adw
         Adw.init()
-        KeyChooser = importlib.import_module("tab_companion.key_selector").KeyChooser
+        KeyChooser = importlib.import_module("galaxy_companion.key_selector").KeyChooser
         selected = []
         chooser = KeyChooser(Adw.Window(), "", selected.append)
         chooser._modifier_buttons[29].set_active(True)
@@ -130,7 +130,7 @@ class KeyChooserTests(unittest.TestCase):
         gi = types.ModuleType("gi")
         gi.repository = types.SimpleNamespace(Adw=types.SimpleNamespace(Window=object), Gdk=gdk, Gtk=object)
         with patch.dict(sys.modules, {"gi": gi, "gi.repository": gi.repository}):
-            from tab_companion import key_selector
+            from galaxy_companion import key_selector
             importlib.reload(key_selector)
         chooser = object.__new__(key_selector.KeyChooser)
         chosen = []

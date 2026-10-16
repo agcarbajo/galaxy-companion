@@ -9,8 +9,8 @@ gi.require_version("Pango", "1.0")
 from gi.repository import Pango
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
-                      "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion"))
-from tab_companion import release_markdown as md, system_summary as summary, update_bundle as bundle
+                      "packaging/galaxy-companion/usr/lib/galaxy-companion"))
+from galaxy_companion import release_markdown as md, system_summary as summary, update_bundle as bundle
 
 
 class BuildInfoTests(unittest.TestCase):

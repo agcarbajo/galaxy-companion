@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 root=Path(__file__).resolve().parents[1]
-helpers=root/'packaging/ubuntu-gts9u-companion/usr/libexec'
+helpers=root/'packaging/galaxy-companion/usr/libexec'
 
 def method(file,name,namespace):
     tree=ast.parse((helpers/file).read_text())
@@ -17,7 +17,7 @@ def method(file,name,namespace):
 
 props=Mock()
 ns={'is_spen':lambda p:True,'dbus':SimpleNamespace(Interface=lambda *a:props,Boolean=bool,DBusException=RuntimeError),'BLUEZ':'bluez','PROPERTIES_IFACE':'props','DEVICE_IFACE':'device'}
-consider=method('tab-companion-spen-pairing','consider',ns)
+consider=method('galaxy-companion-spen-pairing','consider',ns)
 service=SimpleNamespace(remote_enabled=True,connect_failures={},pairing=False,bus=Mock(),finish_pairing=Mock(),docked=lambda:False,connect=Mock())
 consider(service,'/pen',{'Paired':True,'Trusted':True})
 props.Set.assert_not_called()
@@ -37,8 +37,8 @@ service.repairing_bond = True
 consider(service, '/old-pen', {'Paired':True, 'Connected':False, 'Trusted':True})
 assert service.repairing_bond is True
 ns={'dbus':SimpleNamespace(DBusException=RuntimeError),'BLUEZ_ADAPTER':'adapter','BLUEZ_DEVICE':'device'}
-powered=method('tab-companion-hardware','_refresh_bluetooth_powered',ns)
-ble=method('tab-companion-hardware','_refresh_spen_ble',ns)
+powered=method('galaxy-companion-hardware','_refresh_bluetooth_powered',ns)
+ble=method('galaxy-companion-hardware','_refresh_spen_ble',ns)
 manager=Mock();manager.GetManagedObjects.return_value={}
 service=SimpleNamespace(bluez_manager=manager,_set_bluetooth_powered=Mock(),_remote_effective=lambda:True,_ble_disconnected=Mock())
 snapshot=powered(service)
@@ -46,11 +46,11 @@ ble(service,snapshot)
 assert manager.GetManagedObjects.call_count==1
 ble(service)
 assert manager.GetManagedObjects.call_count==2
-pairing_tree=ast.parse((helpers/'tab-companion-spen-pairing').read_text())
+pairing_tree=ast.parse((helpers/'galaxy-companion-spen-pairing').read_text())
 remote=next(n for n in ast.walk(pairing_tree) if isinstance(n,ast.FunctionDef) and n.name=='SetRemoteEnabled')
 assert any(isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='idle_add' and n.args and isinstance(n.args[0],ast.Attribute) and n.args[0].attr=='tick_once' for n in ast.walk(remote))
 ns={'GLib':SimpleNamespace(SOURCE_REMOVE=False)}
-tick_once=method('tab-companion-spen-pairing','tick_once',ns)
+tick_once=method('galaxy-companion-spen-pairing','tick_once',ns)
 service=SimpleNamespace(tick=Mock())
 assert tick_once(service) is False
 service.tick.assert_called_once_with()
@@ -74,7 +74,7 @@ class PenService:
 for name in ('_set_pen_proximity', '_pen_event', '_pen_button', '_pen_single_press',
              '_pen_long_press', '_spen_ble_button_data', '_ensure_pen_reader',
              '_close_pen_reader'):
-    setattr(PenService, name, method('tab-companion-hardware', name, pen_ns))
+    setattr(PenService, name, method('galaxy-companion-hardware', name, pen_ns))
 
 def pen_service(mode='gestures'):
     service = PenService()

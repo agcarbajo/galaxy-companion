@@ -10,11 +10,11 @@ from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion"))
+sys.path.insert(0, str(ROOT / "packaging/galaxy-companion/usr/lib/galaxy-companion"))
 from gi.repository import GLib
 import dbus
-from tab_companion.fingerprint_state import FingerprintState, FINGERS, MAX_PRINTS, IDLE_SECONDS
-from tab_companion.fingerprint import FingerprintManager
+from galaxy_companion.fingerprint_state import FingerprintState, FINGERS, MAX_PRINTS, IDLE_SECONDS
+from galaxy_companion.fingerprint import FingerprintManager
 
 
 class StateTests(unittest.TestCase):

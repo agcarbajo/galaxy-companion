@@ -16,9 +16,9 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
-                      "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion"))
-from tab_companion import main, update_monitor as monitor, update_page
-from tab_companion.window import CompanionWindow
+                      "packaging/galaxy-companion/usr/lib/galaxy-companion"))
+from galaxy_companion import main, update_monitor as monitor, update_page
+from galaxy_companion.window import CompanionWindow
 
 main._ = update_page._ = lambda text: text
 Adw.init()
@@ -58,7 +58,7 @@ with tempfile.TemporaryDirectory() as cache, patch.dict("os.environ", XDG_CACHE_
     with patch.object(main.update_bundle, "release") as request:
         app._weekly_check()
         request.assert_not_called()  # default opt-out
-    settings = Gio.Settings.new("io.github.agcarbajo.TabCompanion")
+    settings = Gio.Settings.new("io.github.agcarbajo.GalaxyCompanion")
     settings.set_boolean("weekly-update-checks", True)
     info = {"tag": "v1.4.0", "supports_updates": True, "sha256": "a" * 64, "size": 1024}
     with patch.object(main.update_bundle, "release", return_value=info) as request:
@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory() as cache, patch.dict("os.environ", XDG_CACHE_
         app._weekly_check()
         request.assert_called_once()  # successful check consumed this week
     with patch.object(app, "_weekly_check") as requested:
-        bus.call("io.github.agcarbajo.TabCompanion", "/io/github/agcarbajo/TabCompanion",
+        bus.call("io.github.agcarbajo.GalaxyCompanion", "/io/github/agcarbajo/GalaxyCompanion",
                  "org.freedesktop.Application", "ActivateAction",
                  GLib.Variant("(sava{sv})", ("check-updates", [], {})), None,
                  Gio.DBusCallFlags.NONE, 30000, None, None, None)
@@ -78,7 +78,7 @@ with tempfile.TemporaryDirectory() as cache, patch.dict("os.environ", XDG_CACHE_
     assert messages[0][3] == "Update available"
     assert "v1.4.0" in messages[0][4]
     assert "default" in messages[0][5]
-    assert messages[0][6]["desktop-entry"] == "io.github.agcarbajo.TabCompanion"
+    assert messages[0][6]["desktop-entry"] == "io.github.agcarbajo.GalaxyCompanion"
     app.hold()
     app._weekly_result(info, None)
     drain()

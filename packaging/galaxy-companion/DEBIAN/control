@@ -1,0 +1,18 @@
+Package: galaxy-companion
+Version: 2.0.0
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: Galaxy Companion contributors <noreply@example.invalid>
+Depends: python3, python3-markdown-it, python3-dbus, python3-gi, python3-gi-cairo, gir1.2-gtk-4.0, gir1.2-adw-1, dconf-gsettings-backend, gnome-shell, util-linux, polkitd, pkexec, ca-certificates
+Recommends: fprintd, apt
+Provides: ubuntu-gts9u-companion
+Replaces: ubuntu-gts9u-companion (<< 2.0~)
+Breaks: ubuntu-gts9u-companion (<< 2.0~)
+Description: GNOME companion for Samsung Galaxy devices on mainline Linux
+ Galaxy Companion is the native GNOME settings application for Samsung Galaxy
+ phones and tablets running a mainline kernel: S Pen status, remote modes and
+ air actions, keyboard cover special keys, haptics, fingerprint enrollment,
+ dual boot and system updates. Each page appears only when the device has the
+ hardware behind it. It replaces Tab Companion from the Galaxy Tab S9 Ultra
+ port and keeps its settings.

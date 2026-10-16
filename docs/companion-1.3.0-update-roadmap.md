@@ -1,9 +1,9 @@
-# Port 1.3.0: Tab Companion update readiness
+# Port 1.3.0: Galaxy Companion update readiness
 
 ## Main integration for port 1.3.0, 2026-09-28
 
 The owner authorised integrating the Companion work into main. Main now
-packages **Tab Companion 1.5.3** for **port 1.3.0**, including the 1.4.6
+packages **Galaxy Companion 1.5.3** for **port 1.3.0**, including the 1.4.6
 S Pen fixes, weekly discovery/notifications, update badge, Markdown build
 notes, About system summary and the simplified available-update card.
 The empty subtitle is represented as absent rather than a translatable empty
@@ -24,7 +24,7 @@ remain mandatory before any cross-suite package is published.
 Verification on a separate Linux copy of main passed 76 unit cases (readiness
 18, system update 39, launcher 5, build info 7, translations 7) and both GTK
 scripts. The package builder passed its Python/schema/resource, desktop and
-AppStream checks. `ubuntu-gts9u-companion_1.5.3_all.deb` has SHA-256
+AppStream checks. `galaxy-companion_1.5.3_all.deb` has SHA-256
 `b4d190b18eee25cfd60ffcb0a622622d6372692b405ff3242af1ecdbd4d30855`.
 This integration does not install another app version on the tablet, publish
 the release or produce a full port ZIP. The preceding device/preview evidence
@@ -42,7 +42,7 @@ keeps those fixes and the new updater/notification functions. Main's port
 VERSION is now 1.3.0; this does not publish a full release or change the live
 port identity, which remains 1.2.0.
 
-The rebuilt `artifacts/ubuntu-gts9u-companion_1.5.0_all.deb` supersedes the
+The rebuilt `artifacts/galaxy-companion_1.5.0_all.deb` supersedes the
 earlier artifact below. Its SHA-256 is
 `a1d7ecd34277bd65fb5fe5a86d75e2f0b3341e8973b869b37a5bdf9238a3d576`.
 The same 71 unit tests and two GTK scripts passed again, along with the
@@ -63,7 +63,7 @@ directory; it was not an integrity or dependency failure.
 
 The previous installed package files, dpkg status and package control scripts
 are retained root-only at
-`/var/lib/tab-companion-update/package-backups/1.4.6-before-1.5.0-20260928/`.
+`/var/lib/galaxy-companion-update/package-backups/1.4.6-before-1.5.0-20260928/`.
 The `installed-files.tar.gz` hash is
 `a7c0e1ff3dde61385e9bc879437706da45549655d9c21d0dd8056168f146c7bd`.
 This is package recovery evidence, not a full Ubuntu migration backup; do not
@@ -101,7 +101,7 @@ Recent port changes relevant to the next release:
 | Gunyah | Existing committed baseline retained; concurrent VM research is not merged or modified. A new kernel must rebuild all opted-in custom modules. |
 
 Port release versions and application package versions are separate. The
-prospective **port 1.3.0** carries **Tab Companion 1.5.0**; the application
+prospective **port 1.3.0** carries **Galaxy Companion 1.5.0**; the application
 version is higher than the already deployed 1.4.2 package.
 
 ## Changes implemented in Companion 1.5.0
@@ -192,7 +192,7 @@ maintainers must review and test the backend before publishing its digest.
 
 The updater additionally verifies the inner backend hash, retains immutable
 copies of the ZIP and backend in root-only
-`/var/lib/tab-companion-update/handoff/<transaction-id>/`, then replaces its
+`/var/lib/galaxy-companion-update/handoff/<transaction-id>/`, then replaces its
 process with `/usr/bin/python3 updater.pyz --zip retained-release.zip`, carrying
 the progress option if enabled. The boot lock is released by CLOEXEC so the
 new engine can acquire its own. A digest marker blocks recursive handoff to a
@@ -258,7 +258,7 @@ compiled schema, `GSETTINGS_BACKEND=memory`, Xvfb and a private session bus:
   deduplication, D-Bus timer action, badge and notification action.
 - `scripts/test-system-update-ui.py`, `scripts/test-companion-translations.py`,
   `scripts/test-companion-build-info.py` and `scripts/test-update-launcher.py`.
-- Build `ubuntu-gts9u-companion_1.5.3_all.deb`, inspect units/D-Bus service/schema,
+- Build `galaxy-companion_1.5.3_all.deb`, inspect units/D-Bus service/schema,
   validate desktop metadata and simulate package installation.
 
 Device acceptance still needs the real GNOME session: toggle persistence after
@@ -275,7 +275,7 @@ port update with saved data/settings. No tablet write is authorised here.
   call; the release backend's `exec` is intercepted. Neither test migrates an
   operating system, writes real boot devices or proves hardware compatibility.
 - The package builder passed Python/schema/resource, desktop and AppStream
-  validation. The built `artifacts/ubuntu-gts9u-companion_1.5.0_all.deb` has
+  validation. The built `artifacts/galaxy-companion_1.5.0_all.deb` has
   SHA-256 `e68e26d813a1ab4dcc5ebd53fd1f86a5d912f96e69a7e5d61e4141aeeb8d759e`.
 - Read-only arm64 APT simulation against the prepared Resolute root succeeded:
   three additions, zero removals. Simulation against the old Noble buildroot

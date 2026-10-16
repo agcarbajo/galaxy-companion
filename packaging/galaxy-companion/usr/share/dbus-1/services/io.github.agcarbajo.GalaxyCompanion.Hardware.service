@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=io.github.agcarbajo.GalaxyCompanion.Hardware
+Exec=/usr/libexec/galaxy-companion-hardware
+SystemdService=galaxy-companion-hardware.service

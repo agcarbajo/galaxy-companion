@@ -61,16 +61,16 @@ def main(argv=None):
     if not re.fullmatch(r'[0-9a-f]{40}', commit):
         raise ValueError('Invalid repository revision')
     prefix = ('https://raw.githubusercontent.com/' + REPOSITORY + '/' + commit +
-              '/packaging/ubuntu-gts9u-companion/usr/lib/tab-companion/tab_companion/')
+              '/packaging/galaxy-companion/usr/lib/galaxy-companion/galaxy_companion/')
     with tempfile.TemporaryDirectory(prefix='gts9u-updater-') as directory:
-        package = Path(directory) / 'tab_companion'
+        package = Path(directory) / 'galaxy_companion'
         package.mkdir()
         (package / '__init__.py').write_bytes(b'')
         for name in ('update_bundle.py', 'update_core.py', 'update_policy.py'):
             (package / name).write_bytes(fetch(prefix + name, 1024 * 1024))
         sys.path.insert(0, directory)
-        core = importlib.import_module('tab_companion.update_core')
-        bundle = importlib.import_module('tab_companion.update_bundle')
+        core = importlib.import_module('galaxy_companion.update_core')
+        bundle = importlib.import_module('galaxy_companion.update_bundle')
         update(core, bundle, repair=args.repair)
 
 

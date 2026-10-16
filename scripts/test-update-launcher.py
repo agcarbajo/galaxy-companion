@@ -13,7 +13,7 @@ spec.loader.exec_module(launcher)
 
 class LauncherTests(TestCase):
     def test_main_imports_the_complete_real_backend_from_one_revision(self):
-        source = Path(__file__).resolve().parents[1] / 'packaging/ubuntu-gts9u-companion/usr/lib/tab-companion/tab_companion'
+        source = Path(__file__).resolve().parents[1] / 'packaging/galaxy-companion/usr/lib/galaxy-companion/galaxy_companion'
         commit = 'a' * 40
         fetched = []
         def fetch(url, limit):
@@ -28,7 +28,7 @@ class LauncherTests(TestCase):
              patch.object(launcher, 'fetch', side_effect=fetch), \
              patch.object(launcher, 'update') as update:
             for name in tuple(sys.modules):
-                if name == 'tab_companion' or name.startswith('tab_companion.'):
+                if name == 'galaxy_companion' or name.startswith('galaxy_companion.'):
                     del sys.modules[name]
             launcher.main([])
             core, bundle = update.call_args.args

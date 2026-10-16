@@ -7,8 +7,8 @@ import sys
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
-                      "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion"))
-from tab_companion.update_bundle import inspect
+                      "packaging/galaxy-companion/usr/lib/galaxy-companion"))
+from galaxy_companion.update_bundle import inspect
 
 
 def validate(path):

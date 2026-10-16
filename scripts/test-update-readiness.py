@@ -12,8 +12,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
-                      "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion"))
-from tab_companion import update_policy as p, update_monitor as m, update_core as core
+                      "packaging/galaxy-companion/usr/lib/galaxy-companion"))
+from galaxy_companion import update_policy as p, update_monitor as m, update_core as core
 
 
 class PolicyTests(unittest.TestCase):
@@ -32,7 +32,7 @@ class PolicyTests(unittest.TestCase):
 
     def test_bridge_release_required(self):
         for installed in ("1.2.0", "", None):
-            with patch("tab_companion.update_bundle.current", return_value={}):
+            with patch("galaxy_companion.update_bundle.current", return_value={}):
                 with self.assertRaisesRegex(ValueError, "1.3.0"):
                     p.check_installed(self.plan(), "noble", installed)
         p.check_installed(self.plan(), "noble", "1.3.0")

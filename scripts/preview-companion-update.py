@@ -15,13 +15,13 @@ from unittest.mock import Mock, patch
 if os.geteuid() == 0:
     raise SystemExit("Run this preview as the desktop user, never root")
 
-sys.path.insert(0, "/usr/lib/tab-companion")
-from tab_companion import main, update_bundle, update_monitor, update_page
+sys.path.insert(0, "/usr/lib/galaxy-companion")
+from galaxy_companion import main, update_bundle, update_monitor, update_page
 from gi.repository import Adw, Gio, GLib
 
 NOTES = """# Vista previa de la build v1.4.0
 
-**Actualización ficticia para probar Tab Companion.** No es una versión
+**Actualización ficticia para probar Galaxy Companion.** No es una versión
 publicada y no contiene paquetes descargables.
 
 ## Kernel y hardware
@@ -78,7 +78,7 @@ def main_preview():
     def release(tag=None):
         return dict(INFO) if tag is None or tag == INFO["tag"] else original_release(tag)
 
-    with tempfile.TemporaryDirectory(prefix="tab-companion-update-preview-") as cache, \
+    with tempfile.TemporaryDirectory(prefix="galaxy-companion-update-preview-") as cache, \
          patch.object(update_bundle, "release", side_effect=release), \
          patch.object(update_monitor, "cache_path", return_value=Path(cache) / "updates.json"), \
          patch.object(update_page.UpdatePage, "_confirm", preview_notice), \
@@ -88,7 +88,7 @@ def main_preview():
          patch.object(update_page.UpdatePage, "_request_repair", preview_notice):
         app = main.CompanionApplication()
         if not app.register(None) or app.get_is_remote():
-            raise SystemExit("Close the normal Tab Companion before starting the preview")
+            raise SystemExit("Close the normal Galaxy Companion before starting the preview")
         # Keep the real application ID/actions for the desktop notification.
         # Only the read-only discovery cache is redirected; GSettings is not.
         app.hold()
@@ -98,7 +98,7 @@ def main_preview():
             window = app.props.active_window
             if not getattr(window, "_preview_close_hook", False):
                 window._preview_close_hook = True
-                window.set_title("Tab Companion — VISTA PREVIA")
+                window.set_title("Galaxy Companion — VISTA PREVIA")
                 window.update_page.local.set_sensitive(False)
                 window.connect("close-request", lambda *_: (app.release(), False)[1])
         # Replace the existing activate handler, keeping the normal window.

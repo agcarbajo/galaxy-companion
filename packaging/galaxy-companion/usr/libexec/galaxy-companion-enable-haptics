@@ -1,0 +1,17 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Enable the bundled extension without overwriting the user's extension list."""
+
+from gi.repository import Gio
+
+
+UUID = "galaxy-companion-haptics@agcarbajo"
+# The same extension under its Tab Companion name; it no longer exists.
+OLD_UUID = "tab-companion-haptics@agcarbajo"
+settings = Gio.Settings.new("org.gnome.shell")
+current = list(settings.get_strv("enabled-extensions"))
+enabled = [uuid for uuid in current if uuid != OLD_UUID]
+if UUID not in enabled:
+    enabled.append(UUID)
+if enabled != current and not settings.set_strv("enabled-extensions", enabled):
+    raise SystemExit("could not enable Galaxy Companion haptics")

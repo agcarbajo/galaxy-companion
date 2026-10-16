@@ -1,0 +1,13 @@
+[Unit]
+Description=Galaxy Companion docked S Pen pairing
+After=bluetooth.service
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/galaxy-companion-spen-pairing
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

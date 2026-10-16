@@ -11,8 +11,8 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
-                      "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion"))
-from tab_companion import update_page
+                      "packaging/galaxy-companion/usr/lib/galaxy-companion"))
+from galaxy_companion import update_page
 
 # Assertions must not depend on the desktop user's saved language preference.
 update_page._ = lambda text: text
@@ -20,7 +20,7 @@ update_page._ = lambda text: text
 Adw.init()
 with patch.object(update_page.Gio.Subprocess, "new"), patch.object(update_page.bundle, "current", return_value={}), patch.object(
         update_page, "status", return_value={"state": "idle"}):
-    window = Adw.Window(title="Tab Companion — update preview", default_width=760, default_height=740)
+    window = Adw.Window(title="Galaxy Companion — update preview", default_width=760, default_height=740)
     page = update_page.UpdatePage(window)
     window.set_content(page)
     with patch.object(update_page, "status", return_value={"state": "failed", "error": "APT stopped"}):
@@ -29,7 +29,7 @@ with patch.object(update_page.Gio.Subprocess, "new"), patch.object(update_page.b
             page._mapped()
             check.assert_not_called()
         assert page.heading.get_text() == "The update did not complete"
-    from tab_companion.update_translations import ES
+    from galaxy_companion.update_translations import ES
     assert ES["Technical details"] == "Detalles t\u00e9cnicos"
     assert ES["Choose file\u2026"] == "Elegir archivo\u2026"
     for i in range(160):
@@ -98,7 +98,7 @@ with patch.object(update_page.Gio.Subprocess, "new"), patch.object(update_page.b
         assert page.restart.get_visible() and not page.local.get_sensitive()
     page._finished(False)
     assert page.details.get_expanded()
-    from tab_companion import window as window_module
+    from galaxy_companion import window as window_module
     from types import SimpleNamespace
     window.hardware = SimpleNamespace(state=SimpleNamespace(
         pen_state="nearby", pen_orientation="tip-left", pen_battery=70,

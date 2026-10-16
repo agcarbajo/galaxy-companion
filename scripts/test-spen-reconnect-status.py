@@ -7,11 +7,11 @@ from unittest.mock import Mock
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPANION = ROOT / "packaging/ubuntu-gts9u-companion/usr/lib/tab-companion/tab_companion"
+COMPANION = ROOT / "packaging/galaxy-companion/usr/lib/galaxy-companion/galaxy_companion"
 sys.path.insert(0, str(COMPANION))
 from spen_status import remote_status_phase
 
-source = ROOT / "packaging/ubuntu-gts9u-companion/usr/libexec/tab-companion-spen-pairing"
+source = ROOT / "packaging/galaxy-companion/usr/libexec/galaxy-companion-spen-pairing"
 tree = ast.parse(source.read_text())
 method = next(node for node in ast.walk(tree)
               if isinstance(node, ast.FunctionDef) and node.name == "SetRemoteEnabled")

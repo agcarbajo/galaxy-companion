@@ -1,0 +1,11 @@
+[Unit]
+Description=Galaxy Companion hardware service
+
+[Service]
+Type=dbus
+BusName=io.github.agcarbajo.GalaxyCompanion.Hardware
+ExecStart=/usr/libexec/galaxy-companion-hardware
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

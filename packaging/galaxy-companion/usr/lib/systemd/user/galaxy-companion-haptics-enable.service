@@ -1,0 +1,12 @@
+[Unit]
+Description=Enable Galaxy Companion on-screen keyboard haptics
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/galaxy-companion-enable-haptics
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical-session.target

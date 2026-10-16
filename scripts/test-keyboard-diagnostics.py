@@ -2,15 +2,15 @@
 """Run in a GTK session; does not collect logs or operate hardware."""
 import sys,json
 from pathlib import Path
-source=Path(sys.argv[1]) if len(sys.argv)>1 else Path(__file__).resolve().parents[1]/"packaging/ubuntu-gts9u-companion/usr/lib/tab-companion"
+source=Path(sys.argv[1]) if len(sys.argv)>1 else Path(__file__).resolve().parents[1]/"packaging/galaxy-companion/usr/lib/galaxy-companion"
 sys.path.insert(0,str(source))
-from tab_companion import keyboard_diagnostics as k
+from galaxy_companion import keyboard_diagnostics as k
 from unittest.mock import patch
 import gi
 gi.require_version("Adw","1")
 from gi.repository import Adw, Gio, Gtk
 import tempfile
-from tab_companion import keyboard_diagnostics_ui as ui
+from galaxy_companion import keyboard_diagnostics_ui as ui
 Adw.init()
 a=Adw.AboutWindow(application_name="Diagnostics test",debug_info="Test")
 ui.add_to_about(a)
@@ -41,5 +41,5 @@ with tempfile.TemporaryDirectory() as tmp, patch.object(ui.GLib,"get_user_specia
  blocked=Path(tmp)/"not-a-directory";blocked.write_text("occupied")
  with patch.object(ui.GLib,"get_user_special_dir",return_value=str(blocked)), patch.object(ui.Path,"home",return_value=Path(tmp)):
   fallback=ui.save_report("{}")
-  assert ".local/state/tab-companion/diagnostics" in str(fallback)
+  assert ".local/state/galaxy-companion/diagnostics" in str(fallback)
 print("PASS Troubleshooting action, private UTF-8 save, invalid-folder fallback, historical key filtering")
