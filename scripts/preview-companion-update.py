@@ -5,6 +5,9 @@ Run as the logged-in desktop user with the normal Companion process closed.
 The installed application code is untouched. Closing the preview restores
 normal discovery; public mock metadata lives only in a temporary cache.
 """
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 import os
 import signal
 from pathlib import Path

@@ -2,22 +2,27 @@
 <component type="desktop-application">
   <id>io.github.agcarbajo.GalaxyCompanion</id>
   <name>Galaxy Companion</name>
-  <summary>Configure the S Pen, keyboard and fingerprints</summary>
-  <summary xml:lang="es">Configura el S Pen, el teclado y las huellas</summary>
-  <summary xml:lang="fr">Configurer le S Pen et le clavier de couverture</summary>
-  <summary xml:lang="de">S Pen und Tastatur-Cover einrichten</summary>
-  <summary xml:lang="it">Configura la S Pen e la cover con tastiera</summary>
-  <summary xml:lang="pt">Configurar a S Pen e a capa com teclado</summary>
+  <summary>Hardware settings for Samsung Galaxy devices</summary>
+  <summary xml:lang="es">Ajustes del hardware de dispositivos Samsung Galaxy</summary>
+  <summary xml:lang="fr">Réglages matériels des appareils Samsung Galaxy</summary>
+  <summary xml:lang="de">Hardware-Einstellungen für Samsung-Galaxy-Geräte</summary>
+  <summary xml:lang="it">Impostazioni hardware dei dispositivi Samsung Galaxy</summary>
+  <summary xml:lang="pt">Definições de hardware dos dispositivos Samsung Galaxy</summary>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <description>
-    <p>Configure S Pen actions and the special keys of Samsung's cover keyboard from a lightweight native GNOME application.</p>
+    <p>A lightweight native GNOME application for Samsung Galaxy phones and tablets running a mainline Linux kernel. It configures the S Pen, the special keys of Samsung's keyboard covers, vibration feedback, fingerprints, dual boot and port updates.</p>
+    <p>Each page appears only when the device has the hardware behind it. Devices are described by small profiles; one without a profile still gets everything that can be detected on its own.</p>
   </description>
-  <developer id="io.github.agcarbajo"><name>Ubuntu gts9uwifi port contributors</name></developer>
+  <developer id="io.github.agcarbajo"><name>Galaxy Companion contributors</name></developer>
   <content_rating type="oars-1.1"/>
   <launchable type="desktop-id">io.github.agcarbajo.GalaxyCompanion.desktop</launchable>
-  <url type="homepage">https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra</url>
+  <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
+  <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
+    <release version="2.0.0" date="2026-10-17">
+      <description><p>Tab Companion becomes Galaxy Companion: device profiles select the pages and hardware for each Samsung device, so the same application runs on the Galaxy Tab S9 Ultra, the Galaxy S9+ and devices without a profile. Settings carry over from Tab Companion.</p></description>
+    </release>
     <release version="1.5.5" date="2026-10-02">
       <description><p>Keep prepared updates armed when PackageKit cancels its own offline updates, and report missing restart triggers instead of remaining ready indefinitely.</p></description>
     </release>

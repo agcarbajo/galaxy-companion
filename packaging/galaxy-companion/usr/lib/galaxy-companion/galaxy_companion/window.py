@@ -6,6 +6,8 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
 from . import VERSION
 from . import boot_sets
+from . import device
+from . import update_bundle
 from .actions import action_for, action_label, actions_for
 from .fingerprint_page import FingerprintPage
 from .update_page import UpdatePage
@@ -49,13 +51,15 @@ KEYS = (
     ("fn-f11", "Fn + F11", N_("Volume up by default")),
 )
 
-COMPATIBLE_KEYBOARDS = (
-    ("EF-DX900", "Galaxy Tab S8 Ultra Book Cover Keyboard", False, True),
-    ("EF-DX910", "Galaxy Tab S9 Ultra Book Cover Keyboard Slim", False, False),
-    ("EF-DX915", "Galaxy Tab S9 Ultra Book Cover Keyboard", False, True),
-    ("EF-DX920", "Galaxy Tab S10 Ultra | S9 Ultra Book Cover Keyboard Slim (AI Key)", True, False),
-    ("EF-DX925", "Galaxy Tab S10 Ultra | S9 Ultra Book Cover Keyboard (AI Key)", True, True),
-)
+PROJECT_URL = "https://github.com/agcarbajo/galaxy-companion"
+
+
+def compatible_keyboards(profile):
+    """(model, name, AI key, touchpad) for every cover this device accepts."""
+    return tuple(
+        (entry["model"], entry["name"], bool(entry.get("ai_key")), bool(entry.get("touchpad")))
+        for entry in profile.keyboard_cover.get("models", ())
+    )
 
 
 def icon_label(icon_name, label, spacing=7):
@@ -167,6 +171,7 @@ class CompanionWindow(Adw.ApplicationWindow):
     def __init__(self, application):
         super().__init__(application=application, title="Galaxy Companion")
         self.set_default_size(960, 760)
+        self.device = device.current()
         self.settings = Gio.Settings.new("io.github.agcarbajo.GalaxyCompanion")
         self.hardware = HardwareClient()
         self.action_buttons = {}
@@ -194,30 +199,47 @@ class CompanionWindow(Adw.ApplicationWindow):
         header.pack_end(about)
         toolbar.add_top_bar(header)
 
+        # One page per piece of hardware this device actually has.  The
+        # builders stay unconditional inside; what changes is whether they
+        # run, so a page never exists half-wired to hardware that is absent.
+        has = self.device.has
         self.view_stack = Adw.ViewStack(vexpand=True)
-        self.view_stack.add_titled_with_icon(self._pen_page(), "pen", "S Pen", "input-tablet-symbolic")
-        self.view_stack.add_titled_with_icon(
-            self._keyboard_page(), "keyboard", _("Cover keyboard"), "input-keyboard-symbolic"
-        )
-        self.view_stack.add_titled_with_icon(
-            self._haptics_page(), "haptics", _("Haptics"), "phone-symbolic"
-        )
+        self.fingerprint_page = None
+        self.update_page = None
+        self.update_stack_page = None
+        # A digitizer alone has nothing to configure: the options live on the
+        # silo's driver and the button actions arrive over Bluetooth.
+        if has("spen") and (has("spen-dock") or has("spen-remote")):
+            self.view_stack.add_titled_with_icon(self._pen_page(), "pen", "S Pen", "input-tablet-symbolic")
+        if has("keyboard-cover"):
+            self.view_stack.add_titled_with_icon(
+                self._keyboard_page(), "keyboard", _("Cover keyboard"), "input-keyboard-symbolic"
+            )
+        if has("haptics"):
+            self.view_stack.add_titled_with_icon(
+                self._haptics_page(), "haptics", _("Haptics"), "phone-symbolic"
+            )
         if boot_sets.available():
             self.view_stack.add_titled_with_icon(
                 self._system_page(), "dualboot", _("Dualboot"), "drive-multidisk-symbolic"
             )
-        self.fingerprint_page = FingerprintPage(self)
-        self.view_stack.add_titled_with_icon(
-            self.fingerprint_page, "fingerprint", _("Fingerprint"), "auth-fingerprint-symbolic"
-        )
-        self.update_page = UpdatePage(self)
-        self.update_stack_page = self.view_stack.add_titled_with_icon(
-            self.update_page, "updates", _("Updates"), "software-update-available-symbolic"
-        )
+        if has("fingerprint"):
+            self.fingerprint_page = FingerprintPage(self)
+            self.view_stack.add_titled_with_icon(
+                self.fingerprint_page, "fingerprint", _("Fingerprint"), "auth-fingerprint-symbolic"
+            )
+        if update_bundle.supported():
+            self.update_page = UpdatePage(self)
+            self.update_stack_page = self.view_stack.add_titled_with_icon(
+                self.update_page, "updates", _("Updates"), "software-update-available-symbolic"
+            )
         self.refresh_update_badge()
-        switcher = Adw.ViewSwitcherBar(stack=self.view_stack, reveal=True)
+        if self.view_stack.get_pages().get_n_items() == 0:
+            self.view_stack.add_named(self._nothing_page(), "nothing")
         toolbar.set_content(self.view_stack)
-        toolbar.add_bottom_bar(switcher)
+        # A switcher with a single entry is just a label taking up room.
+        if self.view_stack.get_pages().get_n_items() > 1:
+            toolbar.add_bottom_bar(Adw.ViewSwitcherBar(stack=self.view_stack, reveal=True))
         self.set_content(toolbar)
 
         # Opening straight on a page is only for photographing the UI on a
@@ -227,7 +249,19 @@ class CompanionWindow(Adw.ApplicationWindow):
             self.view_stack.set_visible_child_name(initial)
 
     def refresh_update_badge(self):
-        self.update_stack_page.set_needs_attention(update_monitor.available(update_monitor.load()))
+        if self.update_stack_page is not None:
+            self.update_stack_page.set_needs_attention(update_monitor.available(update_monitor.load()))
+
+    def _nothing_page(self):
+        return Adw.StatusPage(
+            icon_name="io.github.agcarbajo.GalaxyCompanion-symbolic",
+            title=_("Nothing to set up yet"),
+            description=_(
+                "Galaxy Companion did not find an S Pen, a keyboard cover, a vibration "
+                "motor or a fingerprint reader on this {device}. A device profile can "
+                "describe the hardware it cannot find on its own."
+            ).format(device=self.device.name),
+        )
 
     @staticmethod
     def _page():
@@ -239,15 +273,18 @@ class CompanionWindow(Adw.ApplicationWindow):
     # -- fingerprint settings lifecycle ------------------------------------
 
     def _key_pressed(self, _controller, keyval, _keycode, _state):
-        if keyval == Gdk.KEY_Escape and self.fingerprint_page.running:
+        if (keyval == Gdk.KEY_Escape and self.fingerprint_page is not None
+                and self.fingerprint_page.running):
             self.fingerprint_page.cancel()
             return True
         return False
 
     def _close_requested(self, _window):
-        if self.update_page.busy:
+        if self.update_page is not None and self.update_page.busy:
             self.view_stack.set_visible_child_name("updates")
             return True
+        if self.fingerprint_page is None:
+            return False
         if self.fingerprint_page.running:
             self.fingerprint_page.closing = True
             self.fingerprint_page.cancel()
@@ -737,6 +774,8 @@ class CompanionWindow(Adw.ApplicationWindow):
             Gio.SettingsBindFlags.DEFAULT,
         )
         behaviour.add(dock_popup)
+        behaviour.set_visible(self.device.has("spen-dock"))
+        remote.set_visible(self.device.has("spen-remote"))
         page.add(behaviour)
         page.add(remote)
 
@@ -818,9 +857,11 @@ class CompanionWindow(Adw.ApplicationWindow):
             self._update_hardware()
 
     def _update_remote_sections(self):
+        if not hasattr(self, "remote_switch"):
+            return
         bluetooth = self.hardware.state.bluetooth_available
         requested = self.settings.get_boolean("spen-remote-enabled")
-        enabled = bluetooth and requested
+        enabled = bluetooth and requested and self.device.has("spen-remote")
         pointer = self.settings.get_string("spen-remote-mode") == "pointer"
         self._updating_remote_switch = True
         self.remote_switch.set_active(enabled)
@@ -836,7 +877,11 @@ class CompanionWindow(Adw.ApplicationWindow):
         page = self._page()
         group = Adw.PreferencesGroup(
             title=_("On-screen keyboard"),
-            description=_("The vibration motor has a fixed intensity; strength changes the pulse duration."),
+            description=(
+                _("The vibration motor has a fixed intensity; strength changes the pulse duration.")
+                if self.device.haptics.get("fixed_intensity", True)
+                else _("Strength changes how long each pulse lasts.")
+            ),
         )
         enabled = Adw.SwitchRow(
             title=_("Vibrate on key press"),
@@ -1038,13 +1083,13 @@ class CompanionWindow(Adw.ApplicationWindow):
         # question they did not ask.
         group = Adw.PreferencesGroup(
             title=_("Samsung keyboard covers"),
-            description=_("These covers work with this tablet."),
+            description=_("These covers work with this {device}.").format(device=self.device.name),
         )
         group.set_margin_top(18)
         group.set_margin_bottom(18)
         group.set_margin_start(18)
         group.set_margin_end(18)
-        for model, name, has_ai, has_touchpad in COMPATIBLE_KEYBOARDS:
+        for model, name, has_ai, has_touchpad in compatible_keyboards(self.device):
             details = []
             if has_ai:
                 details.append(_("AI key"))
@@ -1105,6 +1150,8 @@ class CompanionWindow(Adw.ApplicationWindow):
         self._update_keyboard()
 
     def _update_keyboard(self):
+        if not hasattr(self, "keyboard_empty"):
+            return
         state = self.hardware.state
         connected = state.keyboard_present and bool(state.keyboard_model)
         model = state.keyboard_model if connected else self.settings.get_string("known-keyboard-model")
@@ -1119,11 +1166,27 @@ class CompanionWindow(Adw.ApplicationWindow):
         connection = _("Connected") if connected else _("Disconnected")
         self.keyboard_row.set_subtitle(f"{model} · {connection}")
         self.forget_keyboard_button.set_visible(not connected)
-        self.key_rows["galaxy-ai"].set_visible(model in {"EF-DX920", "EF-DX925"})
+        self.key_rows["galaxy-ai"].set_visible(any(
+            entry[0] == model and entry[2] for entry in compatible_keyboards(self.device)
+        ))
 
     def _update_hardware(self, *_args):
-        state = self.hardware.state
         self._update_remote_sections()
+        self._update_pen()
+        if hasattr(self, "haptics_test"):
+            state = self.hardware.state
+            self.haptics_test.set_subtitle(
+                _("Reproduces exactly one on-screen keyboard key press.")
+                if state.haptics_available
+                else _("No vibration motor is available right now")
+            )
+            self.haptics_test.set_sensitive(state.haptics_available)
+        self._update_keyboard()
+
+    def _update_pen(self):
+        if not hasattr(self, "pen_status"):
+            return
+        state = self.hardware.state
         remote_enabled = (
             state.bluetooth_available
             and self.settings.get_boolean("spen-remote-enabled")
@@ -1183,19 +1246,16 @@ class CompanionWindow(Adw.ApplicationWindow):
             self.battery_bar.set_fraction(0)
             self.battery_bar.set_text(_("Unknown"))
             self.battery_row.set_subtitle(_("Insert the S Pen to read its battery"))
-        self.haptics_test.set_subtitle(
-            _("Reproduces exactly one on-screen keyboard key press.")
-            if state.haptics_available
-            else _("The updated kernel is required")
-        )
-        self.haptics_test.set_sensitive(state.haptics_available)
-        self._update_keyboard()
 
     def _show_about(self, _button):
         state = self.hardware.state
         summary = system_summary.rows()
+        profile = self.device.profile_path or "none (generic device)"
         debug = (
             f"Application version: {VERSION}\n"
+            f"Device: {self.device.name} ({self.device.id})\n"
+            f"Device profile: {profile}\n"
+            f"Features: {', '.join(sorted(self.device.features)) or 'none'}\n"
             f"Kernel: {os.uname().release}\n"
             f"S Pen: {state.pen_state}\n"
             f"Orientation: {state.pen_orientation}\n"
@@ -1209,12 +1269,14 @@ class CompanionWindow(Adw.ApplicationWindow):
             transient_for=self,
             application_name="Galaxy Companion",
             application_icon="io.github.agcarbajo.GalaxyCompanion",
-            developer_name=_("Ubuntu gts9uwifi port contributors"),
+            developer_name=_("Galaxy Companion contributors"),
             version=VERSION,
-            website="https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra",
-            issue_url="https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra/issues",
+            website=PROJECT_URL,
+            issue_url=PROJECT_URL + "/issues",
             license_type=Gtk.License.MIT_X11,
-            comments=GLib.markup_escape_text(_("S Pen, keyboard and fingerprint settings for the Galaxy Tab S9 Ultra.")) + "\n\n" + system_summary.markup(summary),
+            comments=GLib.markup_escape_text(
+                _("Hardware settings for the {device}.").format(device=self.device.name)
+            ) + "\n\n" + system_summary.markup(summary),
             debug_info=system_summary.text(summary) + "\n\n" + debug,
             debug_info_filename="galaxy-companion-hardware.txt",
         )
@@ -1222,7 +1284,12 @@ class CompanionWindow(Adw.ApplicationWindow):
             _("Original port creator"),
             ["@agcarbajo https://github.com/agcarbajo"],
         )
-        about.add_credit_section(_("Hardware enablement"), [_("Ubuntu gts9uwifi port contributors")])
+        port = self.device.port
+        if port.get("name"):
+            about.add_credit_section(
+                _("Hardware enablement"),
+                [port["name"] + (" " + port["website"] if port.get("website") else "")],
+            )
         about.add_credit_section(
             _("Air pointer inspiration"),
             ["PenMouse S — Jakub J (@jojczak)"],

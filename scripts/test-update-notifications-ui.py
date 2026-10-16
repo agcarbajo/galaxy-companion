@@ -3,6 +3,9 @@
 
 Run with a compiled schema, GSETTINGS_BACKEND=memory and a private session bus.
 """
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 from pathlib import Path
 import sys
 import tempfile

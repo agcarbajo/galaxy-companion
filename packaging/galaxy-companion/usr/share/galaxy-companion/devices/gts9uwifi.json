@@ -1,0 +1,136 @@
+{
+  "id": "gts9uwifi",
+  "name": "Galaxy Tab S9 Ultra",
+  "model": "SM-X910",
+  "form_factor": "tablet",
+  "soc": "Qualcomm Snapdragon 8 Gen 2 for Galaxy (SM8550)",
+  "match": {
+    "compatible": [
+      "samsung,gts9uwifi"
+    ],
+    "model": [
+      "Samsung Galaxy Tab S9 Ultra Wi-Fi"
+    ]
+  },
+  "features": [
+    "spen",
+    "spen-dock",
+    "spen-remote",
+    "keyboard-cover",
+    "haptics",
+    "fingerprint",
+    "flashlight",
+    "dual-boot",
+    "updates"
+  ],
+  "port": {
+    "name": "Ubuntu gts9uwifi port",
+    "website": "https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra",
+    "issues": "https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra/issues"
+  },
+  "spen": {
+    "digitizer_input": "Wacom EMR Digitizer",
+    "digitizer_driver": "samsung-wacom-w90xx",
+    "dock_attribute": "pen_docked",
+    "ble_reset_attribute": "pen_ble_reset",
+    "battery_supply": "gts9u-spen",
+    "pointer_aspect": 1.6
+  },
+  "keyboard_cover": {
+    "input_prefix": "Book Cover Keyboard",
+    "pogo_driver": "samsung-gts9u-stm32-pogo",
+    "firmware_service": "ubuntu-gts9u-pogo-firmware.service",
+    "firmware_file": "/lib/firmware/keyboard_stm/stm32_gts9family.bin",
+    "validated": [
+      "EF-DX920"
+    ],
+    "models": [
+      {
+        "model": "EF-DX900",
+        "name": "Galaxy Tab S8 Ultra Book Cover Keyboard",
+        "protocol": 254,
+        "ai_key": false,
+        "touchpad": true
+      },
+      {
+        "model": "EF-DX910",
+        "name": "Galaxy Tab S9 Ultra Book Cover Keyboard Slim",
+        "ai_key": false,
+        "touchpad": false
+      },
+      {
+        "model": "EF-DX915",
+        "name": "Galaxy Tab S9 Ultra Book Cover Keyboard",
+        "protocol": 249,
+        "ai_key": false,
+        "touchpad": true
+      },
+      {
+        "model": "EF-DX920",
+        "name": "Galaxy Tab S10 Ultra | S9 Ultra Book Cover Keyboard Slim (AI Key)",
+        "protocol": 214,
+        "ai_key": true,
+        "touchpad": false
+      },
+      {
+        "model": "EF-DX925",
+        "name": "Galaxy Tab S10 Ultra | S9 Ultra Book Cover Keyboard (AI Key)",
+        "protocol": 211,
+        "ai_key": true,
+        "touchpad": true
+      }
+    ]
+  },
+  "haptics": {
+    "vibrator_input": "gpio-vibrator",
+    "fixed_intensity": true
+  },
+  "flashlight": {
+    "led": "white:flash",
+    "helper": "/usr/bin/gts9u-flashlight",
+    "schema": "io.github.agcarbajo.GTS9UFlashlight",
+    "icon": "gts9u-flashlight-symbolic"
+  },
+  "boot_partitions": [
+    {
+      "name": "boot",
+      "size": 100663296,
+      "fallback": "/dev/sda21"
+    },
+    {
+      "name": "init_boot",
+      "size": 8388608,
+      "fallback": "/dev/sda22"
+    },
+    {
+      "name": "vendor_boot",
+      "size": 100663296,
+      "fallback": "/dev/sda24"
+    },
+    {
+      "name": "dtbo",
+      "size": 16777216,
+      "fallback": "/dev/sda30"
+    }
+  ],
+  "dual_boot": {
+    "sets_dir": "/var/lib/gts9u-boot-sets",
+    "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules",
+    "android_data_partition": "sda34"
+  },
+  "updates": {
+    "repository": "agcarbajo/ubuntu-galaxy-tab-s9-ultra",
+    "device": "gts9uwifi",
+    "identity_file": "/usr/lib/gts9u-release.json",
+    "asset_pattern": "ubuntu-[0-9]{2}\\.[0-9]{2}-sm-x910-v[^/]+\\.zip",
+    "format_marker": "gts9u-update-format",
+    "bootstrap_asset": "gts9u-update.pyz",
+    "root_label": "UBTS9U_UFS",
+    "required_packages": [
+      "ubuntu-gts9u-device",
+      "ubuntu-gts9u-hardware"
+    ],
+    "offline_unit": "gts9u-offline-update.service",
+    "lock": "/run/lock/gts9u-boot.lock"
+  }
+}

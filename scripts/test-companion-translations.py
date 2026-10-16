@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Check new UI catalogues, interpolation, markup and language selection."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 import ast
 from collections import Counter
 import gettext

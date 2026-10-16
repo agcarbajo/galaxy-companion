@@ -1,0 +1,107 @@
+# Device profiles
+
+`galaxy_companion/device.py` decides which device is running and what Galaxy
+Companion may drive on it. The UI, the session backend
+(`galaxy-companion-hardware`), the S Pen pairing service and the privileged
+helpers (boot switch, updater, keyboard diagnostics) all read the same result.
+
+## Matching
+
+1. `GALAXY_COMPANION_DEVICE=<id>` forces a profile (tests, trying a profile).
+2. Otherwise the first profile whose `match.compatible` shares a string with
+   `/sys/firmware/devicetree/base/compatible`.
+3. Otherwise the first whose `match.model` equals the device tree `model`.
+4. Otherwise the device is *generic*: its name is the device tree model, and it
+   gets only auto-detected features.
+
+Directories, highest precedence first; the first file seen for an `id` wins:
+`$GALAXY_COMPANION_DEVICES_DIR`, `/etc/galaxy-companion/devices`,
+`/usr/share/galaxy-companion/devices`. A device port can ship its profile in its
+own package, under `/usr/share/galaxy-companion/devices/<id>.json`.
+
+## Features
+
+| Feature | What it enables | Auto-detected |
+|---|---|---|
+| `spen` | S Pen digitizer button events | Wacom EMR Digitizer input |
+| `spen-dock` | silo attributes: docked, orientation, charging, hover rejection, digitizer off when docked | no |
+| `spen-remote` | Bluetooth LE remote: air actions, pointer mode, battery, docked pairing | no |
+| `keyboard-cover` | pogo Book Cover keyboards: special key remapping, diagnostics | no |
+| `haptics` | FF_RUMBLE vibration motor: on-screen keyboard and notification feedback | known motor names |
+| `fingerprint` | fprintd enrollment page | fprintd installed |
+| `flashlight` | "Toggle the flashlight" action, through the device's helper | no |
+| `dual-boot` | Android/Linux boot partition switching | no |
+| `updates` | whole-port updates published as GitHub releases | no |
+
+The S Pen page appears with `spen` plus `spen-dock` or `spen-remote`: a bare
+digitizer has nothing to configure. A leading minus (`"-haptics"`) removes a
+feature that would otherwise be detected.
+
+## Fields
+
+All sections are optional; only the ones a listed feature needs are read.
+
+```jsonc
+{
+  "id": "gts9uwifi",                 // file name without .json
+  "name": "Galaxy Tab S9 Ultra",     // shown in the UI
+  "model": "SM-X910",
+  "form_factor": "tablet",           // or "phone"
+  "soc": "Qualcomm Snapdragon 8 Gen 2 for Galaxy (SM8550)",  // About → Details
+  "match": {"compatible": ["samsung,gts9uwifi"], "model": ["Samsung Galaxy Tab S9 Ultra Wi-Fi"]},
+  "features": ["spen", "spen-dock", "..."],
+  "port": {"name": "...", "website": "...", "issues": "..."},  // About credits
+
+  "spen": {
+    "digitizer_input": "Wacom EMR Digitizer",  // evdev name with BTN_STYLUS
+    "dock_attribute": "pen_docked",            // /sys/bus/i2c/devices/*/<this>
+    "ble_reset_attribute": "pen_ble_reset",
+    "battery_supply": "gts9u-spen",            // /sys/class/power_supply/<this>
+    "pointer_aspect": 1.6                      // panel width / height
+  },
+  "keyboard_cover": {
+    "input_prefix": "Book Cover Keyboard",     // evdev name the backend grabs
+    "pogo_driver": "samsung-gts9u-stm32-pogo", // /sys/bus/i2c/drivers/<this>
+    "firmware_service": "...", "firmware_file": "...",  // diagnostics only
+    "models": [{"model": "EF-DX920", "name": "...", "protocol": 214,
+                "ai_key": true, "touchpad": false}]
+  },
+  "haptics": {"vibrator_input": "gpio-vibrator", "fixed_intensity": true},
+  "flashlight": {"led": "white:flash", "helper": "/usr/bin/gts9u-flashlight",
+                 "schema": "io.github.agcarbajo.GTS9UFlashlight",
+                 "icon": "gts9u-flashlight-symbolic"},
+  "boot_partitions": [{"name": "boot", "size": 100663296, "fallback": "/dev/sda21"}],
+  "dual_boot": {"sets_dir": "/var/lib/gts9u-boot-sets",
+                "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules",
+                "android_data_partition": "sda34"},
+  "updates": {"repository": "owner/repo", "device": "gts9uwifi",
+              "identity_file": "/usr/lib/gts9u-release.json",
+              "asset_pattern": "regex of the installation ZIP name",
+              "format_marker": "gts9u-update-format",
+              "bootstrap_asset": "gts9u-update.pyz",
+              "root_label": "UBTS9U_UFS",
+              "required_packages": ["ubuntu-gts9u-device", "ubuntu-gts9u-hardware"],
+              "offline_unit": "gts9u-offline-update.service",
+              "lock": "/run/lock/gts9u-boot.lock"}
+}
+```
+
+`scripts/test-device-profiles.py` validates every shipped profile, the matching
+rules and the pages the real window builds for each device.
+
+## Vibration motors
+
+`device.VIBRATOR_NAMES` and `70-galaxy-companion-uinput.rules` list the same motor
+names, so the desktop user can open them: `gpio-vibrator`, `pwm-vibrator`,
+`regulator-haptic`, `max77693-haptic`, `max77843-haptic`, `max8997-haptic`. A motor
+with another name needs both a profile (`haptics.vibrator_input`) and a udev rule
+from the device port granting the `input` group access.
+
+## Adding a device
+
+1. Write `<id>.json` with `match`, `name` and the features the port's kernel
+   provides. Try it with `GALAXY_COMPANION_DEVICES_DIR`.
+2. Check About → Troubleshooting: it lists the profile file and the features.
+3. Ship it in the port's package or send it here under
+   `packaging/galaxy-companion/usr/share/galaxy-companion/devices/`, and add the
+   device to `scripts/test-device-profiles.py`.

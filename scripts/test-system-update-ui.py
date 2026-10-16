@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 """Run on a GTK4 desktop. Opens a temporary preview; never prepares an update."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 from pathlib import Path
 import sys
 from unittest.mock import patch
@@ -100,6 +103,8 @@ with patch.object(update_page.Gio.Subprocess, "new"), patch.object(update_page.b
     assert page.details.get_expanded()
     from galaxy_companion import window as window_module
     from types import SimpleNamespace
+    from galaxy_companion import device
+    window.device = device.current()
     window.hardware = SimpleNamespace(state=SimpleNamespace(
         pen_state="nearby", pen_orientation="tip-left", pen_battery=70,
         keyboard_model="EF-DX920", remapping_available=True,

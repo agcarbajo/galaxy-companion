@@ -6,9 +6,22 @@ from pathlib import Path
 import sys
 import zipfile
 
+import json
+import os
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] /
                       "packaging/galaxy-companion/usr/lib/galaxy-companion"))
-from galaxy_companion.update_bundle import inspect
+
+# This runs where the release is built, not on the device, so the profile is
+# the one the manifest names rather than whatever this machine is.
+if len(sys.argv) > 1 and "GALAXY_COMPANION_DEVICE" not in os.environ:
+    try:
+        with zipfile.ZipFile(sys.argv[1]) as _archive:
+            os.environ["GALAXY_COMPANION_DEVICE"] = json.loads(
+                _archive.read("UPDATE/manifest.json")).get("device", "")
+    except (OSError, KeyError, ValueError, zipfile.BadZipFile):
+        pass
+from galaxy_companion.update_bundle import inspect  # noqa: E402
 
 
 def validate(path):

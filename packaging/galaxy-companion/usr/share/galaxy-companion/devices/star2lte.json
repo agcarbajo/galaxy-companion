@@ -1,0 +1,21 @@
+{
+  "id": "star2lte",
+  "name": "Galaxy S9+",
+  "model": "SM-G965F",
+  "form_factor": "phone",
+  "soc": "Samsung Exynos 9810",
+  "match": {
+    "compatible": ["samsung,star2lte"],
+    "model": ["Samsung Galaxy S9+ (SM-G965F)"]
+  },
+  "features": ["haptics"],
+  "port": {
+    "name": "Galaxy S9+ mainline Linux",
+    "website": "https://github.com/agcarbajo/galaxy-s9plus-mainline-linux",
+    "issues": "https://github.com/agcarbajo/galaxy-s9plus-mainline-linux/issues"
+  },
+  "haptics": {
+    "vibrator_input": "max77693-haptic",
+    "fixed_intensity": false
+  }
+}

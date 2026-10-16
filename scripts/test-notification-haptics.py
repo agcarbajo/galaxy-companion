@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Exercise notification routing without opening hardware or vibrating."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 from pathlib import Path
 import runpy
 import sys

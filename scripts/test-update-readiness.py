@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Temporary-file tests; no network, systemd activation or tablet writes."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 import json
 import hashlib
 import io

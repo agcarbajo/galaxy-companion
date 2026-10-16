@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Only synthetic events; never opens an input device or starts a live capture."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 from pathlib import Path
 import runpy
 import sys

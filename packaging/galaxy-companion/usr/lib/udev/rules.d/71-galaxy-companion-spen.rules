@@ -1,2 +1,4 @@
 # Allow the desktop user to change only the two boolean S Pen policy knobs.
-SUBSYSTEM=="i2c", DRIVER=="samsung-wacom-w90xx", RUN+="/usr/libexec/galaxy-companion-spen-permissions %p"
+# Any digitizer driver exposing them qualifies, not one board's driver.
+SUBSYSTEM=="i2c", TEST=="ignore_finger_while_hovering", RUN+="/usr/libexec/galaxy-companion-spen-permissions %p"
+SUBSYSTEM=="i2c", TEST=="disable_digitizer_when_docked", RUN+="/usr/libexec/galaxy-companion-spen-permissions %p"

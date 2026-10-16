@@ -9,14 +9,26 @@ import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
+from . import device
 from . import update_policy as policy
 
-REPOSITORY = "agcarbajo/ubuntu-galaxy-tab-s9-ultra"
+# Whole-port updates are published by the device's port; its profile says
+# where and how.  Without an `updates` section there is nothing to offer.
+DEVICE = device.current()
+CONFIG = DEVICE.updates if DEVICE.has("updates") else {}
+REPOSITORY = CONFIG.get("repository", "")
 API = "https://api.github.com/repos/" + REPOSITORY + "/releases"
-IDENTITY = Path("/usr/lib/gts9u-release.json")
+IDENTITY = Path(CONFIG.get("identity_file", "/usr/lib/galaxy-companion-release.json"))
+DEVICE_ID = CONFIG.get("device", DEVICE.id)
+ASSET_NAME = re.compile(CONFIG.get("asset_pattern", r"(?!)"))
+FORMAT_MARKER = CONFIG.get("format_marker", "galaxy-companion-update-format")
+BOOTSTRAP_ASSET = CONFIG.get("bootstrap_asset", "")
 MANIFEST = "UPDATE/manifest.json"
-PARTITIONS = {"boot": 100663296, "init_boot": 8388608,
-              "vendor_boot": 100663296, "dtbo": 16777216}
+PARTITIONS = {name: size for name, size, _fallback in DEVICE.boot_partitions} if CONFIG else {}
+
+
+def supported():
+    return bool(REPOSITORY)
 MAX_PAYLOAD = 16 * 1024**3
 TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+_~-]{0,100}\Z")
 PACKAGE = re.compile(r"[a-z0-9][a-z0-9+.-]*(?::arm64)?\Z")
@@ -33,7 +45,7 @@ def sha256(path):
 def current():
     try:
         value = json.loads(IDENTITY.read_text())
-        return value if isinstance(value, dict) and value.get("device") == "gts9uwifi" else {}
+        return value if isinstance(value, dict) and value.get("device") == DEVICE_ID else {}
     except (OSError, ValueError):
         return {}
 
@@ -51,6 +63,8 @@ def request(url):
 
 
 def release(tag=None):
+    if not supported():
+        raise ValueError("This device has no published port updates")
     url = API + ("/tags/" + urllib.parse.quote(tag, safe="") if tag else "/latest")
     with request(url) as stream:
         data = json.loads(stream.read(2 * 1024**2 + 1))
@@ -58,10 +72,10 @@ def release(tag=None):
         raise ValueError("This is not a published stable release")
     if not re.fullmatch(r"v[0-9][A-Za-z0-9.+~]{0,100}", str(data.get("tag_name", ""))):
         raise ValueError("Invalid published release version")
-    assets = [a for a in data.get("assets", []) if re.fullmatch(
-        r"ubuntu-[0-9]{2}\.[0-9]{2}-sm-x910-v[^/]+\.zip", a.get("name", ""))]
+    assets = [a for a in data.get("assets", []) if ASSET_NAME.fullmatch(a.get("name", ""))]
     if len(assets) != 1:
-        raise ValueError("The release must contain exactly one SM-X910 installation ZIP")
+        raise ValueError("The release must contain exactly one installation ZIP for the "
+                         + (DEVICE.model or DEVICE.name))
     asset = assets[0]
     expected_url = "https://github.com/" + REPOSITORY + "/releases/download/"
     if not asset.get("browser_download_url", "").startswith(expected_url):
@@ -77,13 +91,15 @@ def release(tag=None):
             # Release notes advertise the payload format without an extra asset.
             # Accept the original bootstrap marker for already-published builds.
             # inspect() still validates the complete downloaded ZIP independently.
-            "supports_updates": any("<!-- gts9u-update-format: " + str(n) + " -->" in (data.get("body") or "")
+            "supports_updates": any("<!-- " + FORMAT_MARKER + ": " + str(n) + " -->" in (data.get("body") or "")
                                     for n in (1, policy.PROTOCOL))
-                or any(a.get("name") == "gts9u-update.pyz" for a in data.get("assets", []))}
+                or bool(BOOTSTRAP_ASSET) and any(a.get("name") == BOOTSTRAP_ASSET for a in data.get("assets", []))}
 
 
 def release_notes(tag):
     """Read installed release notes even if its download asset was retired."""
+    if not supported():
+        raise ValueError("This device has no published port updates")
     if not re.fullmatch(r"v[0-9][A-Za-z0-9.+~]{0,100}", str(tag)):
         raise ValueError("Invalid release tag")
     with request(API + "/tags/" + urllib.parse.quote(tag, safe="")) as stream:
@@ -134,7 +150,7 @@ def inspect(path):
         if archive.getinfo(MANIFEST).file_size > 1024**2:
             raise ValueError("Oversized update manifest")
         manifest = json.loads(archive.read(MANIFEST))
-        if (manifest.get("device") != "gts9uwifi" or manifest.get("architecture") != "arm64"):
+        if (manifest.get("device") != DEVICE_ID or manifest.get("architecture") != "arm64"):
             raise ValueError("Unsupported update format, device or Ubuntu release")
         policy.validate(manifest)
         for field in ("version", "tag", "kernel_release"):

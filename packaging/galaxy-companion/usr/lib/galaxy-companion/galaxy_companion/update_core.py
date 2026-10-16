@@ -12,6 +12,7 @@ import time
 import zipfile
 from pathlib import Path
 
+from . import device
 from . import update_bundle as bundle
 from . import update_policy as policy
 
@@ -22,8 +23,14 @@ TRANSACTION = STATE / "transaction"
 # so an already prepared transaction can still be applied or cancelled.
 MARKER = Path("/etc/system-update")
 LEGACY_MARKER = Path("/system-update")
-UNIT = "gts9u-offline-update.service"
-LOCK = "/run/lock/gts9u-boot.lock"
+UNIT = bundle.CONFIG.get("offline_unit", "galaxy-companion-offline-update.service")
+# Shared with the boot switch: both write the boot partitions.
+LOCK = bundle.CONFIG.get("lock", "/run/lock/galaxy-companion-boot.lock")
+ROOT_LABEL = bundle.CONFIG.get("root_label", "")
+REQUIRED_PACKAGES = set(bundle.CONFIG.get("required_packages", ()))
+# The dual boot's saved Ubuntu set, refreshed with the new boot images.
+_SETS_DIR = bundle.DEVICE.dual_boot.get("sets_dir") if bundle.DEVICE.has("dual-boot") else None
+SAVED_SET = Path(_SETS_DIR) / "ubuntu" if _SETS_DIR else None
 PROGRESS_JSON = False
 
 
@@ -89,18 +96,26 @@ def set_status(state, **extra):
 
 
 def device_check():
-    model = Path("/proc/device-tree/model").read_bytes().rstrip(b"\0")
-    if model != b"Samsung Galaxy Tab S9 Ultra Wi-Fi":
-        raise ValueError("Updates are only supported on the SM-X910")
+    if not bundle.supported() or bundle.DEVICE.generic:
+        raise ValueError("Port updates are not supported on this device")
+    # Profile matching already read the device tree; read it again here,
+    # as root and right before writing partitions, rather than trust a
+    # forced profile.
+    compatible, model = device.device_tree()
+    rules = device.load_profiles().get(bundle.DEVICE.id, {}).get("match", {})
+    if not (set(rules.get("compatible", ())) & set(compatible) or model in rules.get("model", ())):
+        raise ValueError("Updates are only supported on the " + (bundle.DEVICE.model or bundle.DEVICE.name))
     if run(["dpkg", "--print-architecture"], True) != "arm64":
         raise ValueError("Expected arm64 Ubuntu")
     policy.ubuntu_suite()
-    if run(["findmnt", "-n", "-o", "LABEL", "/"], True) != "UBTS9U_UFS":
-        raise ValueError("The installed root filesystem is not this port's UFS installation")
+    if ROOT_LABEL and run(["findmnt", "-n", "-o", "LABEL", "/"], True) != ROOT_LABEL:
+        raise ValueError("The installed root filesystem is not this port's installation")
     # Do not overwrite a saved switch to Android while Linux is still running.
-    with partitions()["vendor_boot"].open("rb") as source:
-        if b"root=LABEL=UBTS9U_UFS" not in source.read(4096):
-            raise ValueError("Boot partitions are not set to Ubuntu; switch back before updating")
+    boot_parts = partitions()
+    if ROOT_LABEL and "vendor_boot" in boot_parts:
+        with boot_parts["vendor_boot"].open("rb") as source:
+            if b"root=LABEL=" + ROOT_LABEL.encode() not in source.read(4096):
+                raise ValueError("Boot partitions are not set to Ubuntu; switch back before updating")
 
 
 def partitions():
@@ -208,7 +223,7 @@ def validate_packages(transaction, plan):
         if name in names or values["Architecture"] not in ("all", "arm64"):
             raise ValueError("Duplicate package or wrong architecture: " + name)
         names.add(name)
-    required = {"ubuntu-gts9u-device", "ubuntu-gts9u-hardware"}
+    required = REQUIRED_PACKAGES
     # Bundles published before the rename carry the companion under its old
     # name; either one satisfies the requirement.
     if not required <= names or not names & {"galaxy-companion", "ubuntu-gts9u-companion"}:
@@ -220,16 +235,24 @@ def install_runner():
     package = TRANSACTION / "galaxy_companion"
     package.mkdir()
     (package / "__init__.py").write_text("")
-    for name in ("update_core.py", "update_bundle.py", "update_policy.py"):
+    for name in ("update_core.py", "update_bundle.py", "update_policy.py", "device.py"):
         # get_source also works when the legacy bootstrap runs as a zipapp.
         module = sys.modules[__package__ + "." + name[:-3]]
         source = module.__loader__.get_source(module.__name__)
         (package / name).write_text(source)
+    # The profile is frozen with the code: the package that shipped it may be
+    # replaced, or the profile renamed, before the runner starts.
+    if bundle.DEVICE.profile_path:
+        profiles = TRANSACTION / "devices"
+        profiles.mkdir(exist_ok=True)
+        shutil.copyfile(bundle.DEVICE.profile_path, profiles / Path(bundle.DEVICE.profile_path).name)
     (TRANSACTION / "runner.py").write_text(
+        "import os\n"
+        "os.environ['GALAXY_COMPANION_DEVICES_DIR'] = os.path.join(os.path.dirname(__file__), 'devices')\n"
         "from galaxy_companion.update_core import main\nmain(['--apply-offline'])\n")
     unit_dir = Path("/etc/systemd/system")
     (unit_dir / UNIT).write_text("""[Unit]
-Description=Apply the prepared Galaxy Tab S9 Ultra update
+Description=Apply the prepared {name} update
 ConditionPathExists=/var/lib/galaxy-companion-update/transaction/runner.py
 DefaultDependencies=no
 Requires=sysinit.target
@@ -243,7 +266,7 @@ ExecStart=/usr/bin/python3 /var/lib/galaxy-companion-update/transaction/runner.p
 TimeoutStartSec=infinity
 StandardOutput=journal+console
 StandardError=journal+console
-""")
+""".replace("{name}", bundle.DEVICE.name))
     wants = unit_dir / "system-update.target.wants"
     wants.mkdir(exist_ok=True)
     link = wants / UNIT
@@ -482,19 +505,20 @@ def apply_offline():
         for part, size in bundle.PARTITIONS.items():
             copy_partition(TRANSACTION / (part + ".img"), devices[part], size)
         # Refresh only Ubuntu's saved set; Android's set and vbmeta stay intact.
-        saved = Path("/var/lib/gts9u-boot-sets/ubuntu")
-        saved.parent.mkdir(parents=True, exist_ok=True)
-        new_set = TRANSACTION / "new-ubuntu-set"
-        new_set.mkdir(exist_ok=True)
-        for part in bundle.PARTITIONS:
-            shutil.copyfile(TRANSACTION / (part + ".img"), new_set / (part + ".img"))
-        (new_set / "name.txt").write_text("Ubuntu " + plan["tag"] + "\n")
-        if saved.exists():
-            if (backup / "ubuntu-set").exists():
-                shutil.rmtree(saved)
-            else:
-                os.rename(saved, backup / "ubuntu-set")
-        os.rename(new_set, saved)
+        if SAVED_SET is not None:
+            saved = SAVED_SET
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            new_set = TRANSACTION / "new-ubuntu-set"
+            new_set.mkdir(exist_ok=True)
+            for part in bundle.PARTITIONS:
+                shutil.copyfile(TRANSACTION / (part + ".img"), new_set / (part + ".img"))
+            (new_set / "name.txt").write_text("Ubuntu " + plan["tag"] + "\n")
+            if saved.exists():
+                if (backup / "ubuntu-set").exists():
+                    shutil.rmtree(saved)
+                else:
+                    os.rename(saved, backup / "ubuntu-set")
+            os.rename(new_set, saved)
         write_json(bundle.IDENTITY, {k: plan[k] for k in
                    ("device", "version", "tag", "kernel_release")})
         os.sync()
@@ -511,8 +535,8 @@ def apply_offline():
                     write_json(bundle.IDENTITY, json.loads((backup / "identity.json").read_text()))
                 elif bundle.IDENTITY.exists():
                     bundle.IDENTITY.unlink()
-                if (backup / "ubuntu-set").exists():
-                    saved = Path("/var/lib/gts9u-boot-sets/ubuntu")
+                if SAVED_SET is not None and (backup / "ubuntu-set").exists():
+                    saved = SAVED_SET
                     if saved.exists():
                         shutil.rmtree(saved)
                     shutil.copytree(backup / "ubuntu-set", saved)
@@ -532,7 +556,7 @@ def apply_offline():
 
 def main(argv=None):
     global PROGRESS_JSON
-    parser = argparse.ArgumentParser(description="Update the SM-X910 Ubuntu port without replacing user data")
+    parser = argparse.ArgumentParser(description="Update this device's Ubuntu port without replacing user data")
     parser.add_argument("--progress-json", action="store_true", help=argparse.SUPPRESS)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--latest", action="store_true")

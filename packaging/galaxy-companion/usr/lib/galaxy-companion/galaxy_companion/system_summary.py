@@ -4,6 +4,7 @@ import math
 import os
 from pathlib import Path
 from html import escape
+from . import device
 from . import update_bundle
 from .i18n import _
 
@@ -25,10 +26,8 @@ def rows():
             release[key] = value.strip('"\'')
     cpu = next((line.split(":", 1)[1].strip() for line in read("/proc/cpuinfo").splitlines()
                 if line.startswith(("model name", "Hardware")) and ":" in line), "")
-    compatible = read("/proc/device-tree/compatible")
-    if "qcom,sm8550" in compatible:
-        cpu = "Qualcomm Snapdragon 8 Gen 2 for Galaxy (SM8550)"
-    cpu = cpu or read("/sys/devices/soc0/machine") or unknown
+    # /proc/cpuinfo on arm64 names no product; the profile knows the SoC.
+    cpu = device.current().soc or cpu or read("/sys/devices/soc0/machine") or unknown
     memory, uptime = unknown, unknown
     try:
         total = next(line.split()[1] for line in read("/proc/meminfo").splitlines() if line.startswith("MemTotal:"))

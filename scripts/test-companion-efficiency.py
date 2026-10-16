@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Exercise duplicate-work reductions without a real pen or system bus."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 import ast
 from pathlib import Path
 import struct

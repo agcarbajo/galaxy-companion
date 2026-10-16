@@ -12,6 +12,14 @@ import dbus.mainloop.glib
 import dbus.service
 from gi.repository import GLib
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/galaxy-companion"))
+from galaxy_companion import device as device_profile  # noqa: E402
+
+DEVICE = device_profile.current()
+DOCK_ATTRIBUTE = DEVICE.spen.get("dock_attribute", "pen_docked")
+BLE_RESET_ATTRIBUTE = DEVICE.spen.get("ble_reset_attribute", "pen_ble_reset")
+
 
 BLUEZ = "org.bluez"
 BUS_NAME = "io.github.agcarbajo.GalaxyCompanion.SPenPairing"
@@ -269,12 +277,12 @@ class PairingService(dbus.service.Object):
 
     @staticmethod
     def _find_reset_path():
-        matches = glob("/sys/bus/i2c/devices/*/pen_ble_reset")
+        matches = glob("/sys/bus/i2c/devices/*/" + BLE_RESET_ATTRIBUTE)
         return Path(matches[0]) if matches else None
 
     @staticmethod
     def docked():
-        matches = glob("/sys/bus/i2c/devices/*/pen_docked")
+        matches = glob("/sys/bus/i2c/devices/*/" + DOCK_ATTRIBUTE)
         if not matches:
             return False
         try:
@@ -534,6 +542,11 @@ class PairingService(dbus.service.Object):
 
 
 def main():
+    # The pairing flow is started by the silo, so a device without both has
+    # nothing to do here.  Exiting cleanly keeps systemd from restarting it.
+    if not (DEVICE.has("spen-remote") and DEVICE.has("spen-dock")):
+        print(f"{DEVICE.name} has no docked S Pen to pair; nothing to do", flush=True)
+        return
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     while True:
         try:

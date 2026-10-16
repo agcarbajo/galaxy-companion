@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Pure state + real Gio worker on private synthetic D-Bus; no biometric data."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 import os
 from pathlib import Path
 import subprocess

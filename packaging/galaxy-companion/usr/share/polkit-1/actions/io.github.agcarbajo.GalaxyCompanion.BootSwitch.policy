@@ -5,14 +5,14 @@
 <policyconfig>
 
   <vendor>Galaxy Companion</vendor>
-  <vendor_url>https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra</vendor_url>
+  <vendor_url>https://github.com/agcarbajo/galaxy-companion</vendor_url>
 
   <!-- Reading the boot partitions decides what the window shows, so it runs on
        every open.  It changes nothing, so it does not deserve a password
        prompt; the switch below is the one that does. -->
   <action id="io.github.agcarbajo.GalaxyCompanion.boot-status">
-    <description>Read which system the tablet will boot</description>
-    <description xml:lang="es">Leer qué sistema arrancará la tablet</description>
+    <description>Read which system the device will boot</description>
+    <description xml:lang="es">Leer qué sistema arrancará el dispositivo</description>
     <message>Authentication is required to read the boot partitions</message>
     <message xml:lang="es">Se necesita autenticación para leer las particiones de arranque</message>
     <defaults>
@@ -24,10 +24,10 @@
   </action>
 
   <action id="io.github.agcarbajo.GalaxyCompanion.boot-switch">
-    <description>Change which system the tablet boots</description>
-    <description xml:lang="es">Cambiar el sistema que arranca la tablet</description>
-    <message>Authentication is required to change the system the tablet boots</message>
-    <message xml:lang="es">Se necesita autenticación para cambiar el sistema que arranca la tablet</message>
+    <description>Change which system the device boots</description>
+    <description xml:lang="es">Cambiar el sistema que arranca el dispositivo</description>
+    <message>Authentication is required to change the system the device boots</message>
+    <message xml:lang="es">Se necesita autenticación para cambiar el sistema que arranca el dispositivo</message>
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>no</allow_inactive>

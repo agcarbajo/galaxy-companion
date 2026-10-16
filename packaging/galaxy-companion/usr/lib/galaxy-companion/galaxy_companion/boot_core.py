@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: MIT
-"""Reading and replacing the four partitions that decide which system boots.
+"""Reading and replacing the partitions that decide which system boots.
+
+Which partitions those are, their sizes and where the stored sets live come
+from the device profile (`boot_partitions` and `dual_boot`); a device without
+them has no dual boot.  The notes below are about the first device that had
+it, the Galaxy Tab S9 Ultra.
 
 Only `boot`, `init_boot`, `vendor_boot` and `dtbo` differ between Ubuntu and
 whichever Android is installed.  `vbmeta` is deliberately absent: Android runs
@@ -19,23 +24,31 @@ import hashlib
 import json
 import os
 
+from . import device
 
-SETS_DIR = "/var/lib/gts9u-boot-sets"
+
+DEVICE = device.current()
+_CONFIG = DEVICE.dual_boot if DEVICE.has("dual-boot") else {}
+
+SETS_DIR = _CONFIG.get("sets_dir", "/var/lib/galaxy-companion/boot-sets")
 
 # The rule that lets an active local session switch systems without a
 # password.  galaxy-companion-boot-noask writes and removes it; it is named here
 # so that the one place allowed to read it and the one place allowed to write
 # it cannot drift apart.
-NOASK_RULE = "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules"
+NOASK_RULE = _CONFIG.get("noask_rule", "/etc/polkit-1/rules.d/49-galaxy-companion-boot-switch.rules")
+
+# Android's userdata, whose size is all that can be read of it.
+ANDROID_DATA = _CONFIG.get("android_data_partition", "")
 
 # Sizes are fixed by the partition table, so a wrong or truncated file is
 # caught before anything is written.
-PARTITIONS = (
-    ("boot", 100663296),
-    ("init_boot", 8388608),
-    ("vendor_boot", 100663296),
-    ("dtbo", 16777216),
-)
+PARTITIONS = tuple((name, size) for name, size, _fallback in DEVICE.boot_partitions) if _CONFIG else ()
+_FALLBACKS = {name: fallback for name, _size, fallback in DEVICE.boot_partitions if fallback}
+
+
+def available():
+    return bool(PARTITIONS)
 
 # Last-resort names, deliberately without version numbers.  A real name comes
 # from name.txt, written by whichever system is running; guessing a version
@@ -95,14 +108,9 @@ def _resolve_device(name):
     path = device_for(name)
     if os.path.exists(path):
         return path
-    # The partition table gives userdata sda34 and linuxroot sda35, so the
-    # boot partitions keep their fixed numbers from Samsung's PIT.
-    fallback = {
-        "boot": "/dev/sda21",
-        "init_boot": "/dev/sda22",
-        "vendor_boot": "/dev/sda24",
-        "dtbo": "/dev/sda30",
-    }.get(name)
+    # The profile may name the raw node: on the Tab S9 Ultra the boot
+    # partitions keep fixed numbers from Samsung's PIT.
+    fallback = _FALLBACKS.get(name)
     return fallback if fallback and os.path.exists(fallback) else None
 
 
@@ -222,7 +230,7 @@ def storage():
     except OSError:
         pass
 
-    android_total = _partition_bytes("sda34")
+    android_total = _partition_bytes(ANDROID_DATA) if ANDROID_DATA else 0
     if android_total:
         info["android"] = {"total": android_total, "used": 0, "known": False}
 
@@ -300,7 +308,7 @@ def write_set(set_id, report):
             return False
         report("step", f"{name} verificada.")
 
-    report("done", "Las cuatro particiones coinciden.")
+    report("done", "Las particiones de arranque coinciden.")
     return True
 
 

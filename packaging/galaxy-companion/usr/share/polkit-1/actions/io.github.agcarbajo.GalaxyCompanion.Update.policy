@@ -4,8 +4,8 @@
   <action id="io.github.agcarbajo.GalaxyCompanion.update">
     <description>Prepare a system update</description>
     <description xml:lang="es">Preparar una actualización del sistema</description>
-    <message>Authentication is required to update the tablet</message>
-    <message xml:lang="es">Se necesita autenticación para actualizar la tablet</message>
+    <message>Authentication is required to update the system</message>
+    <message xml:lang="es">Se necesita autenticación para actualizar el sistema</message>
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>no</allow_inactive>

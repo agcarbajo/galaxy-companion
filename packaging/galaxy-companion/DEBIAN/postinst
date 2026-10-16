@@ -26,6 +26,15 @@ if [ -e /var/lib/tab-companion/spen-remote-enabled ] && [ ! -e /var/lib/galaxy-c
 	cp -p /var/lib/tab-companion/spen-remote-enabled /var/lib/galaxy-companion/spen-remote-enabled
 fi
 
+# A "switch without the password" rule written by Tab Companion names its
+# polkit action; polkit would keep loading it and never match it.
+for rule in /etc/polkit-1/rules.d/*.rules; do
+	[ -f "$rule" ] || continue
+	if grep -q 'io.github.agcarbajo.TabCompanion.boot-switch' "$rule"; then
+		sed -i 's/io\.github\.agcarbajo\.TabCompanion\.boot-switch/io.github.agcarbajo.GalaxyCompanion.boot-switch/' "$rule"
+	fi
+done
+
 if command -v systemctl >/dev/null 2>&1; then
 	# Units from Tab Companion: its files are gone once this package replaces
 	# it, but the enablement symlinks would linger and point at nothing.

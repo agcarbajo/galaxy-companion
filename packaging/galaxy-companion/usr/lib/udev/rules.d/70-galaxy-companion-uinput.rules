@@ -1,3 +1,4 @@
-# The per-user daemon runs as the tablet owner, who is a member of input.
+# The per-user daemon runs as the device owner, who is a member of input.
 KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660"
-KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="gpio-vibrator", GROUP="input", MODE="0660"
+# Vibration motors driven through FF_RUMBLE; device.VIBRATOR_NAMES lists the same.
+KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="gpio-vibrator|pwm-vibrator|regulator-haptic|max77693-haptic|max77843-haptic|max8997-haptic", GROUP="input", MODE="0660"

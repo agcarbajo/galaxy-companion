@@ -11,7 +11,11 @@ import subprocess
 import struct
 import time
 
-DRIVER = "/sys/bus/i2c/drivers/samsung-gts9u-stm32-pogo"
+from . import device
+
+DEVICE = device.current()
+DRIVER = "/sys/bus/i2c/drivers/" + DEVICE.keyboard_cover.get("pogo_driver", "")
+FIRMWARE_SERVICE = DEVICE.keyboard_cover.get("firmware_service", "")
 RELEVANT = re.compile(r"pogo|stm32|MAX77816|geni_i2c|i2c.*002a", re.I)
 PRIVATE_EVENT = re.compile(r"last_key|key.?code|scan.?code|key event|raw.packet|\[B?[PRM]\]", re.I)
 
@@ -123,13 +127,13 @@ def collect_privileged(seconds=20):
             "-n", "4000", "-o", "short-monotonic"]))
         report["firmware_service_boot_" + boot] = filtered_log(command([
             "journalctl", "--no-pager", "--quiet", "-b", boot,
-            "-u", "ubuntu-gts9u-pogo-firmware.service", "-n", "150", "-o", "cat"]), False)
+            "-u", FIRMWARE_SERVICE, "-n", "150", "-o", "cat"]), False)
     report["interrupts"] = [line for line in read("/proc/interrupts", 65536).splitlines()
                              if RELEVANT.search(line)]
-    report["firmware_service"] = command(["systemctl", "show", "ubuntu-gts9u-pogo-firmware.service",
+    report["firmware_service"] = command(["systemctl", "show", FIRMWARE_SERVICE,
         "-p", "ActiveState", "-p", "SubState", "-p", "Result", "-p", "ExecMainStatus"])
     report["libinput_version"] = command(["libinput", "--version"])
-    firmware = Path("/lib/firmware/keyboard_stm/stm32_gts9family.bin")
+    firmware = Path(DEVICE.keyboard_cover.get("firmware_file", "/dev/null"))
     try:
         report["firmware_sha256"] = hashlib.sha256(firmware.read_bytes()).hexdigest()
     except OSError as error:
@@ -141,10 +145,12 @@ def collect_session():
     from gi.repository import Gio
     from . import VERSION
     report = {"companion_version": VERSION, "kernel": os.uname().release,
-              "architecture": os.uname().machine, "release": read("/usr/lib/gts9u-release.json"),
+              "architecture": os.uname().machine, "release": read(DEVICE.updates.get("identity_file", "/dev/null")),
+              "device": DEVICE.id,
               "os_release": read("/etc/os-release"), "session_type": os.environ.get("XDG_SESSION_TYPE", "unknown")}
-    report["packages"] = command(["dpkg-query", "-W", "galaxy-companion", "ubuntu-gts9u-device",
-                                    "ubuntu-gts9u-hardware", "libinput10", "mutter", "gnome-shell"])
+    report["packages"] = command(["dpkg-query", "-W", "galaxy-companion",
+                                    *DEVICE.updates.get("required_packages", ()),
+                                    "libinput10", "mutter", "gnome-shell"])
     report["settings"] = {}
     for schema, keys in {
         "org.gnome.desktop.peripherals.touchpad": ("send-events", "tap-to-click", "natural-scroll",

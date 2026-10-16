@@ -13,6 +13,8 @@ import threading
 
 from gi.repository import GLib
 
+from . import device
+
 
 STATUS_HELPER = "/usr/libexec/galaxy-companion-boot-status"
 SWITCH_HELPER = "/usr/libexec/galaxy-companion-boot-switch"
@@ -20,8 +22,11 @@ NOASK_HELPER = "/usr/libexec/galaxy-companion-boot-noask"
 
 
 def available():
-    """Whether this build carries the helpers at all."""
-    return os.path.exists(STATUS_HELPER) and os.path.exists(SWITCH_HELPER)
+    """Whether this device has dual boot and this build carries the helpers."""
+    return (
+        device.current().has("dual-boot")
+        and os.path.exists(STATUS_HELPER) and os.path.exists(SWITCH_HELPER)
+    )
 
 
 def noask_available():

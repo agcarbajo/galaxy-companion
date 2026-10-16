@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Run in a GTK session; does not collect logs or operate hardware."""
+import os as _os
+# These tests exercise the Galaxy Tab S9 Ultra's hardware: use its profile.
+_os.environ.setdefault("GALAXY_COMPANION_DEVICE", "gts9uwifi")
 import sys,json
 from pathlib import Path
 source=Path(sys.argv[1]) if len(sys.argv)>1 else Path(__file__).resolve().parents[1]/"packaging/galaxy-companion/usr/lib/galaxy-companion"

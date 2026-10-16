@@ -19,12 +19,24 @@ import dbus
 import dbus.mainloop.glib
 from gi.repository import Gio, GLib
 
+import sys
+# Installed: /usr/libexec/../lib/galaxy-companion.  In a checkout the same
+# relative path reaches the package tree next to this file.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/galaxy-companion"))
+from galaxy_companion import device as device_profile  # noqa: E402
+
+DEVICE = device_profile.current()
+
 
 BUS_NAME = "io.github.agcarbajo.GalaxyCompanion.Hardware"
 OBJECT_PATH = "/io/github/agcarbajo/GalaxyCompanion/Hardware"
 INTERFACE = BUS_NAME
-KEYBOARD_PREFIX = "Book Cover Keyboard"
-PEN_NAME = "Wacom EMR Digitizer"
+KEYBOARD_PREFIX = DEVICE.keyboard_cover.get("input_prefix", "Book Cover Keyboard")
+PEN_NAME = DEVICE.spen.get("digitizer_input", "Wacom EMR Digitizer")
+PEN_DOCK_ATTRIBUTE = DEVICE.spen.get("dock_attribute", "pen_docked")
+PEN_BATTERY_SUPPLY = DEVICE.spen.get("battery_supply", "")
+# The panel's width over its height: pointer yaw gets this much more travel.
+POINTER_ASPECT = float(DEVICE.spen.get("pointer_aspect", 1.6))
 BLUEZ = "org.bluez"
 BLUEZ_ADAPTER = "org.bluez.Adapter1"
 BLUEZ_DEVICE = "org.bluez.Device1"
@@ -40,18 +52,15 @@ SPEN_BATTERY_UUID = "5a87b4ef-3bfa-76a8-e642-92933c31434f"
 SPEN_BUTTON_UUID = "6c290d2e-1c03-aca1-ab48-a9b908bae79e"
 SPEN_MODE_UUID = "aca1ab48-08ba-e79e-ab48-a9b9e6429293"
 SPEN_RAW_SENSOR_UUID = "ddb42396-ca00-4db3-b87d-2ee458279360"
+# The covers this device's pogo driver can report, from its profile.
 KEYBOARD_MODELS = {
-    "EF-DX900": "Galaxy Tab S8 Ultra Book Cover Keyboard",
-    "EF-DX910": "Galaxy Tab S9 Ultra Book Cover Keyboard Slim",
-    "EF-DX915": "Galaxy Tab S9 Ultra Book Cover Keyboard",
-    "EF-DX920": "Galaxy Tab S10 Ultra | S9 Ultra Book Cover Keyboard Slim (AI Key)",
-    "EF-DX925": "Galaxy Tab S10 Ultra | S9 Ultra Book Cover Keyboard (AI Key)",
+    entry["model"]: entry["name"]
+    for entry in DEVICE.keyboard_cover.get("models", ())
 }
 KEYBOARD_PROTOCOL_MODELS = {
-    0xFE: "EF-DX900",
-    0xF9: "EF-DX915",
-    0xD3: "EF-DX925",
-    0xD6: "EF-DX920",
+    entry["protocol"]: entry["model"]
+    for entry in DEVICE.keyboard_cover.get("models", ())
+    if "protocol" in entry
 }
 MAPPINGS = {
     "key-galaxy-ai", "key-dex", "key-finder", "key-settings",
@@ -378,14 +387,19 @@ class KeyboardCapture:
 
 
 class ForceFeedback:
-    """Small evdev FF_RUMBLE client for the board's gpio-vibrator."""
+    """Small evdev FF_RUMBLE client for the board's vibration motor."""
 
     def __init__(self):
         self.fd = None
         self.effect_id = -1
+        if not DEVICE.has("haptics"):
+            return
+        wanted = set(device_profile.VIBRATOR_NAMES)
+        if DEVICE.haptics.get("vibrator_input"):
+            wanted.add(DEVICE.haptics["vibrator_input"])
         for event in glob("/sys/class/input/event*"):
-            name = read_text(Path(event) / "device/name").lower()
-            if "vibrator" not in name:
+            name = read_text(Path(event) / "device/name")
+            if name not in wanted and "vibrator" not in name.lower():
                 continue
             try:
                 self.fd = os.open(
@@ -480,13 +494,17 @@ class HardwareService:
             "changed::spen-remote-mode", self._remote_mode_changed
         )
         self._migrate_keyboard_codes()
-        try:
-            self.virtual_keyboard = VirtualKeyboard()
-            self.virtual_watch = GLib.io_add_watch(
-                self.virtual_keyboard.fd, GLib.IO_IN, self._virtual_output
-            )
-        except OSError:
-            self.virtual_keyboard = None
+        # Only a cover to relay or a pen whose actions press keys needs the
+        # virtual keyboard; elsewhere it would be a phantom input device.
+        self.virtual_keyboard = None
+        if DEVICE.has("keyboard-cover") or DEVICE.has("spen"):
+            try:
+                self.virtual_keyboard = VirtualKeyboard()
+                self.virtual_watch = GLib.io_add_watch(
+                    self.virtual_keyboard.fd, GLib.IO_IN, self._virtual_output
+                )
+            except OSError:
+                self.virtual_keyboard = None
         # Created on demand; see _sync_pointer().
         self.virtual_pointer = None
         self.haptics = ForceFeedback()
@@ -582,6 +600,8 @@ class HardwareService:
             self.settings.set_uint("keyboard-mapping-version", 4)
 
     def _init_spen_ble(self):
+        if not DEVICE.has("spen-remote"):
+            return
         try:
             self.system_bus = dbus.SystemBus()
             self.bluez_manager = dbus.Interface(
@@ -762,7 +782,7 @@ class HardwareService:
         self.ble_gatt_failures += 1
         docked = (
             self.wacom is not None
-            and read_text(self.wacom / "pen_docked") == "1"
+            and read_text(self.wacom / PEN_DOCK_ATTRIBUTE) == "1"
         )
         now = time.monotonic()
         if (
@@ -833,7 +853,7 @@ class HardwareService:
         # its battery and completed bonding.
         docked = (
             self.wacom is not None
-            and read_text(self.wacom / "pen_docked") == "1"
+            and read_text(self.wacom / PEN_DOCK_ATTRIBUTE) == "1"
         )
         pointer_active = (
             self.settings.get_string("spen-remote-mode") == "pointer" and not docked
@@ -952,7 +972,7 @@ class HardwareService:
             or self.settings.get_string("spen-remote-mode") != "pointer"
             or (
                 self.wacom is not None
-                and read_text(self.wacom / "pen_docked") == "1"
+                and read_text(self.wacom / PEN_DOCK_ATTRIBUTE) == "1"
             )
             or len(value) < 13
         ):
@@ -1076,10 +1096,10 @@ class HardwareService:
             scale *= 1.0 + min(
                 1.5, (abs(raw_x) + abs(raw_y)) / 6000.0
             )
-        # The panel is roughly 1.6 times wider than it is tall. Give yaw the
+        # The panel is wider than it is tall (POINTER_ASPECT). Give yaw the
         # corresponding extra travel, and match both signs to the physical
         # direction confirmed on the tablet.
-        target_x = -raw_x * scale * 1.6
+        target_x = -raw_x * scale * POINTER_ASPECT
         target_y = raw_y * scale
         alpha = 1.0 - smoothing / 110.0
         self.pointer_filtered_x += alpha * (target_x - self.pointer_filtered_x)
@@ -1094,7 +1114,9 @@ class HardwareService:
 
     @staticmethod
     def _find_wacom():
-        matches = glob("/sys/bus/i2c/devices/*/pen_docked")
+        if not DEVICE.has("spen-dock"):
+            return None
+        matches = glob("/sys/bus/i2c/devices/*/" + PEN_DOCK_ATTRIBUTE)
         return Path(matches[0]).parent if matches else None
 
     def _apply_pen_options(self):
@@ -1126,6 +1148,8 @@ class HardwareService:
 
     @staticmethod
     def _keyboard_info():
+        if not DEVICE.has("keyboard-cover"):
+            return False, "", ""
         for path in glob("/sys/bus/i2c/devices/*/diagnostics"):
             diagnostic = read_text(path)
             if "attached=1" not in diagnostic or "connected=1" not in diagnostic:
@@ -1146,6 +1170,8 @@ class HardwareService:
 
     @staticmethod
     def _find_keyboard_event():
+        if not DEVICE.has("keyboard-cover"):
+            return None
         for path in glob("/sys/class/input/event*"):
             if read_text(Path(path) / "device/name").startswith(KEYBOARD_PREFIX):
                 return "/dev/input/" + Path(path).name
@@ -1153,6 +1179,8 @@ class HardwareService:
 
     @staticmethod
     def _find_pen_event():
+        if not DEVICE.has("spen"):
+            return None
         for path in glob("/sys/class/input/event*"):
             if read_text(Path(path) / "device/name") == PEN_NAME:
                 return "/dev/input/" + Path(path).name
@@ -1372,18 +1400,22 @@ class HardwareService:
             self.execute_mapping("gesture-single-press")
         return GLib.SOURCE_REMOVE
 
-    FLASHLIGHT_SCHEMA = "io.github.agcarbajo.GTS9UFlashlight"
-    FLASHLIGHT_LED = "/sys/class/leds/white:flash/brightness"
+    FLASHLIGHT_SCHEMA = DEVICE.flashlight.get("schema", "")
+    FLASHLIGHT_LED = "/sys/class/leds/{}/brightness".format(DEVICE.flashlight.get("led", ""))
+    FLASHLIGHT_HELPER = DEVICE.flashlight.get("helper", "")
 
     def _flashlight_settings(self):
         """The torch's shared state, or None when the device package is absent.
 
-        This lives in ubuntu-gts9u-device, which this package does not depend
-        on, so a missing schema has to be an ordinary answer rather than a
+        This lives in the device port's own package, which this package does
+        not depend on, so a missing schema has to be an ordinary answer rather than a
         crash that would take the whole daemon with it.
         """
         if getattr(self, "_flashlight_gsettings", "unset") != "unset":
             return self._flashlight_gsettings
+        if not self.FLASHLIGHT_SCHEMA:
+            self._flashlight_gsettings = None
+            return None
         source = Gio.SettingsSchemaSource.get_default()
         schema = source.lookup(self.FLASHLIGHT_SCHEMA, True) if source else None
         self._flashlight_gsettings = Gio.Settings(schema_id=self.FLASHLIGHT_SCHEMA) if schema else None
@@ -1392,13 +1424,15 @@ class HardwareService:
     def toggle_flashlight(self):
         """Flip the torch, at the brightness the quick-settings slider chose.
 
-        `gts9u-flashlight toggle` would light it at the helper's own default and
+        The helper's own `toggle` would light it at the helper's own default and
         ignore that slider, so the two halves are done here: read the LED, then
         ask for the opposite.  Writing the result into the shared setting is
         what lets the quick-settings tile and its status icon follow a shortcut
         -- sysfs announces nothing when it is written, so without this the tile
         would keep showing the state from before.
         """
+        if not DEVICE.has("flashlight") or not self.FLASHLIGHT_HELPER:
+            return False
         settings = self._flashlight_settings()
         try:
             lit = int(read_text(self.FLASHLIGHT_LED, "0") or 0) > 0
@@ -1406,10 +1440,10 @@ class HardwareService:
             lit = False
 
         if lit:
-            argv = ["/usr/bin/gts9u-flashlight", "off"]
+            argv = [self.FLASHLIGHT_HELPER, "off"]
         else:
             level = settings.get_int("brightness") if settings is not None else 128
-            argv = ["/usr/bin/gts9u-flashlight", "on", str(max(1, level))]
+            argv = [self.FLASHLIGHT_HELPER, "on", str(max(1, level))]
 
         try:
             subprocess.Popen(argv, start_new_session=True)
@@ -1499,13 +1533,16 @@ class HardwareService:
         self._refresh_spen_ble(objects)
         if not self.haptics.available and int(time.monotonic()) % 5 == 0:
             self.haptics = ForceFeedback()
-        docked = self.wacom is not None and read_text(self.wacom / "pen_docked") == "1"
+        docked = self.wacom is not None and read_text(self.wacom / PEN_DOCK_ATTRIBUTE) == "1"
         raw_orientation = read_text(self.wacom / "pen_orientation") if self.wacom else ""
         orientation = {"downside": "tip-right", "upside": "tip-left"}.get(
             raw_orientation, "unknown"
         )
         charge = read_text(self.wacom / "pen_charging") if self.wacom else "unknown"
-        capacity = read_text("/sys/class/power_supply/gts9u-spen/capacity")
+        capacity = (
+            read_text(f"/sys/class/power_supply/{PEN_BATTERY_SUPPLY}/capacity")
+            if PEN_BATTERY_SUPPLY else ""
+        )
         battery = self.ble_battery
         if battery < 0 and capacity.isdigit():
             battery = min(100, max(0, int(capacity)))

@@ -10,8 +10,8 @@
     heredar el permiso que concede.
 -->
 <policyconfig>
-  <vendor>Ubuntu port for SM-X910</vendor>
-  <vendor_url>https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra</vendor_url>
+  <vendor>Galaxy Companion</vendor>
+  <vendor_url>https://github.com/agcarbajo/galaxy-companion</vendor_url>
 
   <action id="io.github.agcarbajo.GalaxyCompanion.BootNoAsk">
     <description>Change whether switching systems asks for the password</description>

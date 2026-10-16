@@ -39,11 +39,13 @@ class CompanionApplication(Adw.Application):
 
     def _open_updates(self, *_args):
         self.activate()
-        self.props.active_window.view_stack.set_visible_child_name("updates")
+        window = self.props.active_window
+        if window.update_page is not None:
+            window.view_stack.set_visible_child_name("updates")
 
     def _weekly_check(self):
         settings = Gio.Settings.new(APP_ID)
-        if (self._checking_updates or not settings.get_boolean("weekly-update-checks")
+        if (self._checking_updates or not update_bundle.supported() or not settings.get_boolean("weekly-update-checks")
                 or not update_monitor.due(update_monitor.load())):
             return
         self._checking_updates = True
@@ -71,7 +73,7 @@ class CompanionApplication(Adw.Application):
                 elif not update_monitor.available(value):
                     self.withdraw_notification("system-update")
                 window = self.props.active_window
-                if window:
+                if window and window.update_page is not None:
                     window.refresh_update_badge()
                     if not window.update_page.busy:
                         window.update_page._checked(info, None)

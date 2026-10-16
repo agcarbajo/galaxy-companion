@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass
 
+from . import device
 from .i18n import _, N_
 
 
@@ -43,9 +44,15 @@ _SHARED = (
     Action("volume-up", N_("Volume up"), "audio-volume-high-symbolic"),
     Action("volume-down", N_("Volume down"), "audio-volume-low-symbolic"),
     Action("mute", N_("Mute"), "audio-volume-muted-symbolic"),
-    Action("flashlight", N_("Toggle the flashlight"), "gts9u-flashlight-symbolic"),
+    # The icon ships with the device port that ships the torch helper.
+    Action("flashlight", N_("Toggle the flashlight"),
+           device.current().flashlight.get("icon", "camera-flash-symbolic")),
     Action("command", N_("Run a command"), "utilities-terminal-symbolic"),
 )
+
+# Only what this device can do: no flashlight entry where there is no torch.
+if not device.current().has("flashlight"):
+    _SHARED = tuple(action for action in _SHARED if action.action_id != "flashlight")
 
 PEN_ACTIONS = (DO_NOTHING,) + _SHARED
 KEY_ACTIONS = (KEEP_DEFAULT, DO_NOTHING) + _SHARED
