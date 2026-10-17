@@ -16,7 +16,8 @@
     "haptics",
     "notification-led",
     "charge-limit",
-    "bixby-key"
+    "bixby-key",
+    "flashlight"
   ],
   "port": {
     "name": "Galaxy S9+ mainline Linux",
@@ -35,6 +36,9 @@
     "method": "charge-behaviour",
     "battery": "max170xx_battery",
     "charger": "max77705-charger"
+  },
+  "flashlight": {
+    "led": "white:flash"
   },
   "bixby_key": {
     "input": "gpio-keys",

@@ -1,0 +1,83 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Switch the device's torch, the LED its profile names (white:flash by default).
+
+    galaxy-companion-flashlight on [1-255]   light it (default 128, scaled to the LED)
+    galaxy-companion-flashlight off
+    galaxy-companion-flashlight toggle
+    galaxy-companion-flashlight status       "on" or "off"
+    galaxy-companion-flashlight path         the LED's sysfs directory
+
+Runs as the user: 70-galaxy-companion-flashlight.rules lets the video group
+write the brightness of flash and torch LEDs, and nothing else of them.
+"""
+import os
+import re
+import sys
+from pathlib import Path
+
+# Installed: /usr/libexec next to /usr/lib/galaxy-companion; same from a checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
+from galaxy_companion import device  # noqa: E402
+
+LEDS = Path(os.environ.get("GALAXY_COMPANION_LEDS", "/sys/class/leds"))
+DEFAULT_LEVEL = 128
+
+
+def fail(message):
+    print(f"galaxy-companion-flashlight: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def led():
+    profile = device.current()
+    name = profile.flashlight.get("led", "white:flash") if profile.has("flashlight") else ""
+    # A class device name, never a path.
+    if not re.fullmatch(r"[A-Za-z0-9_:.-]+", name or "") or not (LEDS / name).is_dir():
+        fail("this device has no flashlight")
+    return LEDS / name
+
+
+def read(path):
+    try:
+        return int(path.read_text().strip())
+    except (OSError, ValueError):
+        fail(f"cannot read {path}")
+
+
+def write(path, value):
+    try:
+        path.write_text(f"{value}\n")
+    except PermissionError:
+        fail("permission denied: not in the video group, or the LED's udev rule has not run")
+    except OSError as error:
+        fail(f"cannot write {path}: {error.strerror}")
+
+
+def main(argv):
+    command = argv[1] if len(argv) > 1 else "status"
+    directory = led()
+    brightness, maximum = directory / "brightness", read(directory / "max_brightness")
+    # Levels are on a 0-255 scale, whatever the LED's own maximum is.
+    scale = lambda level: max(1, round(level * maximum / 255))
+    if command == "on" and len(argv) <= 3:
+        level = argv[2] if len(argv) == 3 else str(DEFAULT_LEVEL)
+        if not level.isdigit() or not 1 <= int(level) <= 255:
+            fail("the level is 1-255")
+        write(brightness, scale(int(level)))
+    elif command == "off" and len(argv) == 2:
+        write(brightness, 0)
+    elif command == "toggle" and len(argv) == 2:
+        write(brightness, 0 if read(brightness) > 0 else scale(DEFAULT_LEVEL))
+    elif command == "status" and len(argv) == 2:
+        print("on" if read(brightness) > 0 else "off")
+    elif command == "path" and len(argv) == 2:
+        print(directory)
+    else:
+        print(__doc__, file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

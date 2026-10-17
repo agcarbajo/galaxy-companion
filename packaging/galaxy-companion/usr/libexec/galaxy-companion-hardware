@@ -1544,9 +1544,10 @@ class HardwareService:
             self.execute_mapping("gesture-single-press")
         return GLib.SOURCE_REMOVE
 
-    FLASHLIGHT_SCHEMA = DEVICE.flashlight.get("schema", "")
-    FLASHLIGHT_LED = "/sys/class/leds/{}/brightness".format(DEVICE.flashlight.get("led", ""))
-    FLASHLIGHT_HELPER = DEVICE.flashlight.get("helper", "")
+    FLASHLIGHT_SCHEMA = DEVICE.flashlight.get("schema", "io.github.agcarbajo.GalaxyCompanion.Flashlight")
+    # A profile may bring its port's own helper and schema; otherwise these.
+    FLASHLIGHT_LED = "/sys/class/leds/{}/brightness".format(DEVICE.flashlight.get("led", "white:flash"))
+    FLASHLIGHT_HELPER = DEVICE.flashlight.get("helper", "/usr/libexec/galaxy-companion-flashlight")
 
     def _flashlight_settings(self):
         """The torch's shared state, or None when the device package is absent.

@@ -61,7 +61,7 @@ own package, under `/usr/share/galaxy-companion/devices/<id>.json`.
 | `keyboard-cover` | pogo Book Cover keyboards: special key remapping, diagnostics | no |
 | `haptics` | FF_RUMBLE vibration motor: on-screen keyboard and notification feedback | known motor names |
 | `fingerprint` | fprintd enrollment page | fprintd installed |
-| `flashlight` | "Toggle the flashlight" action, through the device's helper | no |
+| `flashlight` | Quick Settings toggle with brightness, and the "Toggle the flashlight" action | no |
 | `dual-boot` | Android/Linux switching, with the Dualboot Android app ([dual-boot.md](dual-boot.md)) | no |
 | `updates` | whole-port updates published as GitHub releases | no |
 | `notification-led` | LED page: rules for a multicolour status LED (notifications per app, battery, charging, media), quiet hours | no |
@@ -102,7 +102,8 @@ All sections are optional; only the ones a listed feature needs are read.
                 "ai_key": true, "touchpad": false}]
   },
   "haptics": {"vibrator_input": "gpio-vibrator", "fixed_intensity": true},
-  "flashlight": {"led": "white:flash", "helper": "/usr/bin/gts9u-flashlight",
+  "flashlight": {"led": "white:flash",                      // the torch LED (default)
+                 "helper": "/usr/bin/gts9u-flashlight",      // a port's own; optional
                  "schema": "io.github.agcarbajo.GTS9UFlashlight",
                  "icon": "gts9u-flashlight-symbolic"},
   "dual_boot": {"partitions": [{"name": "boot", "size": 100663296, "fallback": "/dev/sda21"},
@@ -171,6 +172,19 @@ device; a charger that ignores the request would make the option a lie.
   (`charge_behaviour`). `galaxy-companion-charge-limit.service` polls the
   battery every minute, stops at the limit and resumes 5 points below; stopping
   the service always resumes charging.
+
+## Flashlight
+
+A torch is an LED class device (`white:flash` unless the profile names
+another) whose brightness the video group may write
+(`70-galaxy-companion-flashlight.rules` does that for every `*:flash` and
+`*:torch` LED). With just `{"led": ...}`, Galaxy Companion drives it:
+`galaxy-companion-flashlight on [1-255]|off|toggle|status|path`, the
+"Toggle the flashlight" button action, and a Quick Settings toggle with a
+brightness slider (`flashlight@agcarbajo.github.io`, enabled once at login;
+the brightness is in `io.github.agcarbajo.GalaxyCompanion.Flashlight`). A
+port that has its own tile names its `helper` and `schema` instead, and the
+Galaxy Companion tile is then not enabled (the Tab S9 Ultra).
 
 ## Status LED
 

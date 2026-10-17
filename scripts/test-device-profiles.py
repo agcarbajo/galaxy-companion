@@ -79,7 +79,7 @@ class ProfileTests(unittest.TestCase):
         found = self.resolve(("samsung,star2lte", "samsung,exynos9810"), "Samsung Galaxy S9+ (SM-G965F)",
                              names=["max77693-haptic", "gpio-keys"])
         self.assertEqual((found.id, found.form_factor), ("star2lte", "phone"))
-        self.assertEqual(found.features, frozenset({"haptics", "notification-led", "charge-limit", "bixby-key"}))
+        self.assertEqual(found.features, frozenset({"haptics", "notification-led", "charge-limit", "bixby-key", "flashlight"}))
         self.assertEqual(found.notification_led["led"], "rgb:status")
 
     def test_model_string_matches_when_compatible_does_not(self):

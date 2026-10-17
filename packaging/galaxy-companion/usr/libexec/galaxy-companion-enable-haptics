@@ -1,11 +1,23 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: MIT
-"""Enable the bundled extension without overwriting the user's extension list."""
+"""Enable the bundled extensions without overwriting the user's extension list.
+
+Haptics always; the flashlight tile once, on a device whose torch Galaxy
+Companion drives (a port with its own tile names its own helper), so that
+turning it off in Extensions sticks.
+"""
+import sys
+from pathlib import Path
 
 from gi.repository import Gio
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
+from galaxy_companion import device  # noqa: E402
+
 
 UUID = "galaxy-companion-haptics@agcarbajo"
+FLASHLIGHT_UUID = "flashlight@agcarbajo.github.io"
+OWN_HELPER = "/usr/libexec/galaxy-companion-flashlight"
 # The same extension under its Tab Companion name; it no longer exists.
 OLD_UUID = "tab-companion-haptics@agcarbajo"
 settings = Gio.Settings.new("org.gnome.shell")
@@ -13,5 +25,12 @@ current = list(settings.get_strv("enabled-extensions"))
 enabled = [uuid for uuid in current if uuid != OLD_UUID]
 if UUID not in enabled:
     enabled.append(UUID)
+profile = device.current()
+companion = Gio.Settings.new("io.github.agcarbajo.GalaxyCompanion")
+if (profile.has("flashlight") and profile.flashlight.get("helper", OWN_HELPER) == OWN_HELPER
+        and not companion.get_boolean("flashlight-tile-offered")):
+    if FLASHLIGHT_UUID not in enabled:
+        enabled.append(FLASHLIGHT_UUID)
+    companion.set_boolean("flashlight-tile-offered", True)
 if enabled != current and not settings.set_strv("enabled-extensions", enabled):
     raise SystemExit("could not enable Galaxy Companion haptics")

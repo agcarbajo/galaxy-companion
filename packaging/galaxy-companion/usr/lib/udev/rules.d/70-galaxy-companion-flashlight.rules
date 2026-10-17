@@ -1,0 +1,3 @@
+# Desktop users (video group) may switch the torch: the brightness of flash and
+# torch LEDs only. The strobe, timeout and fault files stay root's.
+SUBSYSTEM=="leds", KERNEL=="*:flash|*:torch", RUN+="/usr/bin/chgrp video /sys%p/brightness", RUN+="/usr/bin/chmod 0664 /sys%p/brightness"

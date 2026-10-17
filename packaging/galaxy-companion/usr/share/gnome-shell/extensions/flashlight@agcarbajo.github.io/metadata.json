@@ -1,0 +1,8 @@
+{
+  "uuid": "flashlight@agcarbajo.github.io",
+  "name": "Flashlight",
+  "description": "A quick settings toggle and brightness slider for the device's torch.",
+  "shell-version": ["45", "46", "47", "48", "50"],
+  "url": "https://github.com/agcarbajo/galaxy-companion",
+  "version": 1
+}
