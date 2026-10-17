@@ -5,6 +5,38 @@ Companion may drive on it. The UI, the session backend
 (`galaxy-companion-hardware`), the S Pen pairing service and the privileged
 helpers (boot switch, updater, keyboard diagnostics) all read the same result.
 
+A profile is a JSON file named after the device. It only describes hardware;
+it never runs code. Profiles are searched in:
+
+1. `/etc/galaxy-companion/devices/` for local overrides
+2. `/usr/share/galaxy-companion/devices/`, shipped here or by a device port's own package
+
+## A minimal profile
+
+A phone with a vibration motor:
+
+```json
+{
+  "id": "star2lte",
+  "name": "Galaxy S9+",
+  "model": "SM-G965F",
+  "form_factor": "phone",
+  "soc": "Samsung Exynos 9810",
+  "match": {"compatible": ["samsung,star2lte"], "model": ["Samsung Galaxy S9+ (SM-G965F)"]},
+  "features": ["haptics"],
+  "haptics": {"vibrator_input": "max77693-haptic", "fixed_intensity": false}
+}
+```
+
+[`gts9uwifi.json`](../packaging/galaxy-companion/usr/share/galaxy-companion/devices/gts9uwifi.json)
+is the complete example: S Pen sysfs attributes and Bluetooth, keyboard cover
+models and their protocol IDs, flashlight helper, boot partitions, dual boot and
+the port's release repository.
+
+Without a profile the app still detects a vibration motor, fprintd and a Wacom
+EMR digitizer. Features that need exact knowledge of the board (keyboard covers,
+the S Pen silo, dual boot, updates) stay off rather than guess.
+
 ## Matching
 
 1. `GALAXY_COMPANION_DEVICE=<id>` forces a profile (tests, trying a profile).
@@ -100,7 +132,12 @@ from the device port granting the `input` group access.
 ## Adding a device
 
 1. Write `<id>.json` with `match`, `name` and the features the port's kernel
-   provides. Try it with `GALAXY_COMPANION_DEVICES_DIR`.
+   provides, and try it before packaging it:
+
+   ```bash
+   GALAXY_COMPANION_DEVICES_DIR=~/profiles galaxy-companion
+   GALAXY_COMPANION_DEVICE=<id> galaxy-companion   # force this profile
+   ```
 2. Check About → Troubleshooting: it lists the profile file and the features.
 3. Ship it in the port's package or send it here under
    `packaging/galaxy-companion/usr/share/galaxy-companion/devices/`, and add the
