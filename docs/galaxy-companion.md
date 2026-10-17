@@ -36,6 +36,19 @@ compatible Samsung keyboard covers. `galaxy-companion` installs it; it
 appears in GNOME's menu, and the user service applies the mappings even while
 the window is closed.
 
+## Versions
+
+Galaxy Companion restarted its numbering at **0.9.0** when it became its own
+project; **1.0.0** will be the first official release, and the releases list
+in the AppStream metadata starts there. The history under Tab Companion
+(1.x, in the Galaxy Tab S9 Ultra port) and the 2.x builds published during the
+rename stay in git. Because packages with those higher numbers are installed
+on some devices, the Debian version carries **epoch 1** (`1:0.9.0`): apt, the
+self-updater (`app_update.newer()`) and the port's transitional
+`ubuntu-gts9u-companion` all rank the restart above them, while file names,
+tags and the UI show the version without the epoch. The Dualboot Android app
+follows with a `versionCode` offset of 100000 for the same reason.
+
 ## System updates
 
 The Updates page exists when the device profile has an `updates` section

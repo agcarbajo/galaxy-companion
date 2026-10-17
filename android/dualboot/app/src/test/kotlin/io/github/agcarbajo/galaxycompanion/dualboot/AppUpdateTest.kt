@@ -38,9 +38,11 @@ class AppUpdateTest {
     }
 
     @Test fun versionsCompareAsNumbers() {
-        assertTrue(AppUpdate.newer("2.10.0", "2.9.9"))
-        assertTrue(AppUpdate.newer("2.3.1", "2.3.0"))
-        assertFalse(AppUpdate.newer("2.3.0", "2.3.0"))
-        assertFalse(AppUpdate.newer("2.2.9", "2.3.0"))
+        assertEquals(100900, AppUpdate.code("0.9.0"))
+        assertEquals(110000, AppUpdate.code("1.0.0"))
+        assertTrue(AppUpdate.newer("1.0.0", AppUpdate.code("0.9.0")))
+        assertTrue(AppUpdate.newer("0.9.0", 20300))  // the last build before the restart
+        assertFalse(AppUpdate.newer("0.9.0", AppUpdate.code("0.9.0")))
+        assertFalse(AppUpdate.newer("0.8.9", AppUpdate.code("0.9.0")))
     }
 }

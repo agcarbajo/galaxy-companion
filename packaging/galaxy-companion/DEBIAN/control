@@ -1,5 +1,5 @@
 Package: galaxy-companion
-Version: 2.5.1
+Version: 1:0.9.0
 Section: utils
 Priority: optional
 Architecture: all

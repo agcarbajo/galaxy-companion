@@ -77,18 +77,18 @@ object AppUpdate {
         .map { it.trim().split(Regex("\\s+\\*?"), limit = 2) }
         .firstOrNull { it.size == 2 && it[1] == name && HEX.matches(it[0]) }?.get(0)
 
-    /** Whether [candidate] (major.minor.patch) is newer than [current]. */
-    fun newer(candidate: String, current: String): Boolean {
-        fun parts(v: String) = v.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
-        val a = parts(candidate)
-        val b = parts(current)
-        for (i in 0 until maxOf(a.size, b.size)) {
-            val x = a.getOrElse(i) { 0 }
-            val y = b.getOrElse(i) { 0 }
-            if (x != y) return x > y
-        }
-        return false
+    /**
+     * The versionCode build.gradle.kts gives [version] (major.minor.patch):
+     * 100000 + major * 10000 + minor * 100 + patch, monotonic across the
+     * numbering restart at 0.9.0 (the last pre-restart build, 2.3.0, was 20300).
+     */
+    fun code(version: String): Int {
+        val parts = version.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
+        return 100000 + parts.getOrElse(0) { 0 } * 10000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }
     }
+
+    /** Whether release [candidate] would install over the app whose versionCode is [currentCode]. */
+    fun newer(candidate: String, currentCode: Int): Boolean = code(candidate) > currentCode
 
     // -- network ---------------------------------------------------------------
 
@@ -132,7 +132,7 @@ object AppUpdate {
     /** The newest release with an APK, if it is newer than this app. */
     fun check(): Release? {
         val release = parseRelease(readText(API)) ?: return null
-        return release.takeIf { newer(it.version, BuildConfig.VERSION_NAME) }
+        return release.takeIf { newer(it.version, BuildConfig.VERSION_CODE) }
     }
 
     private fun updatesDir(context: Context) = File(context.cacheDir, "updates").apply { mkdirs() }

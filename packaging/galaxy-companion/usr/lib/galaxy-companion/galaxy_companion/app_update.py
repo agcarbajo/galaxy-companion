@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import VERSION
+from . import DEBIAN_VERSION, EPOCH, VERSION
 
 REPOSITORY = "agcarbajo/galaxy-companion"
 API = f"https://api.github.com/repos/{REPOSITORY}/releases/latest"
@@ -65,16 +65,29 @@ def installed():
             return result.stdout.strip()
     except (OSError, subprocess.SubprocessError):
         pass
-    return VERSION
+    return DEBIAN_VERSION
+
+
+def debian_version(version):
+    """A release's version (the asset name carries no epoch) as the Debian
+    version its package has."""
+    return version if ":" in version else EPOCH + ":" + version
 
 
 def _key(version):
     """A fallback ordering for hosts without dpkg: numbers compare as numbers."""
-    upstream = re.split(r"[~+-]", version, maxsplit=1)[0]
-    return [int(part) if part.isdigit() else part for part in re.split(r"[.]", upstream)]
+    epoch, _, rest = version.rpartition(":")
+    upstream = re.split(r"[~+-]", rest, maxsplit=1)[0]
+    return [int(epoch or 0)] + [int(part) if part.isdigit() else part for part in re.split(r"[.]", upstream)]
 
 
 def newer(candidate, current):
+    """Whether release `candidate` is newer than the installed `current`.
+
+    `current` is dpkg's view of the installed package: with the epoch on the
+    current scheme, without it on the 1.x and 2.x packages that predate the
+    restart at 0.9.0, which is exactly what ranks the restart above them."""
+    candidate = debian_version(candidate)
     try:
         return subprocess.run(["dpkg", "--compare-versions", candidate, "gt", current],
                               timeout=10).returncode == 0

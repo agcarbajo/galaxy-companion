@@ -37,7 +37,11 @@ val copyProfiles = tasks.register<CopyProfiles>("copyProfiles") {
 
 /**
  * The app is released together with Galaxy Companion and carries its version,
- * read from the one place it is written.  2.3.0 becomes versionCode 20300.
+ * read from the one place it is written.  The numbering restarted at 0.9.0
+ * when Galaxy Companion became its own project, and Android only installs an
+ * update whose versionCode is higher, so codes start at 100000: 0.9.0 is
+ * 100900, 1.0.0 is 110000, above the 20300 of the last pre-restart build.
+ * AppUpdate.code() mirrors this formula.
  */
 val companionVersion: List<Int> = rootProject.layout.projectDirectory
 	.file("../../packaging/galaxy-companion/usr/lib/galaxy-companion/galaxy_companion/__init__.py").asFile.readText()
@@ -70,7 +74,7 @@ android {
 		// Android 10: the oldest Android a supported Galaxy still runs.
 		minSdk = 29
 		targetSdk = 35
-		versionCode = companionVersion[0] * 10000 + companionVersion[1] * 100 + companionVersion[2]
+		versionCode = 100000 + companionVersion[0] * 10000 + companionVersion[1] * 100 + companionVersion[2]
 		versionName = companionVersion.joinToString(".")
 	}
 

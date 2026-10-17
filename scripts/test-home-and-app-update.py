@@ -64,9 +64,24 @@ class ReleaseTests(unittest.TestCase):
                                      f"{DIGEST}  galaxy-companion_2.2.0_all.deb\n")
 
     def test_version_order(self):
-        self.assertTrue(app_update.newer("2.10.0", "2.9.1"))
-        self.assertFalse(app_update.newer("2.1.0", "2.1.0"))
-        self.assertFalse(app_update.newer("2.0.9", "2.1.0"))
+        # The installed version is dpkg's, with the epoch of the current scheme.
+        self.assertTrue(app_update.newer("2.10.0", "1:2.9.1"))
+        self.assertFalse(app_update.newer("2.1.0", "1:2.1.0"))
+        self.assertFalse(app_update.newer("2.0.9", "1:2.1.0"))
+
+    def test_restarted_numbering_ranks_above_every_pre_restart_package(self):
+        # Installed before the restart: Tab Companion 1.5.x, Galaxy Companion 2.x.
+        for installed in ("1.5.8", "2.3.0", "2.5.1"):
+            self.assertTrue(app_update.newer("0.9.0", installed), installed)
+        # Installed after it: dpkg reports the epoch.
+        self.assertTrue(app_update.newer("1.0.0", "1:0.9.0"))
+        self.assertFalse(app_update.newer("0.9.0", "1:0.9.0"))
+        self.assertFalse(app_update.newer("0.9.0", "1:1.0.0"))
+        self.assertEqual(app_update.debian_version("0.9.0"), "1:0.9.0")
+        self.assertEqual(app_update.debian_version("1:0.9.0"), "1:0.9.0")
+        with patch.object(app_update.subprocess, "run", side_effect=OSError):
+            self.assertTrue(app_update.newer("0.9.0", "2.5.1"))
+            self.assertFalse(app_update.newer("0.9.0", "1:0.9.0"))
 
     def test_weekly_state(self):
         with tempfile.TemporaryDirectory() as cache, patch.dict(os.environ, {"XDG_CACHE_HOME": cache}):

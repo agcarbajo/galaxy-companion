@@ -10,7 +10,10 @@
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
 gh=${GH:-gh}
+# The Debian version carries epoch 1 (see __init__.py); tags, file names and
+# release notes use the version without it.
 version=$(awk '/^Version:/ {print $2}' "$repo/packaging/galaxy-companion/DEBIAN/control")
+version=${version#*:}
 code=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' "$repo/packaging/galaxy-companion/usr/lib/galaxy-companion/galaxy_companion/__init__.py")
 [ "$version" = "$code" ] || { echo "DEBIAN/control says $version, __init__.py says $code" >&2; exit 1; }
 out=$(mktemp -d)

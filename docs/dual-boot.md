@@ -169,8 +169,10 @@ adb install -r android/dualboot/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 The build copies the device profiles into the APK, so rebuild after changing
-one. The app carries Galaxy Companion's version (2.3.0 is versionCode 20300)
-and is released with it.
+one. The app carries Galaxy Companion's version and is released with it; its
+versionCode is 100000 + major·10000 + minor·100 + patch (0.9.0 is 100900), an
+offset that keeps every code above the 20300 of the last build before the
+numbering restarted.
 
 **Updates.** The app's *Updates* section looks for the newest release of
 this repository. A release carries `galaxy-companion-dualboot_<version>.apk`

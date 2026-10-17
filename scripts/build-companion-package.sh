@@ -8,8 +8,10 @@ src=$repo/packaging/galaxy-companion
 out=${DEB_OUT_DIR:-$base/out/packages}
 
 version=$(awk '/^Version:/ {print $2}' "$src/DEBIAN/control")
+# Debian file names leave the epoch out, as dpkg does.
+upstream=${version#*:}
 staging=$base/build/deb/galaxy-companion
-deb=$out/galaxy-companion_${version}_all.deb
+deb=$out/galaxy-companion_${upstream}_all.deb
 
 rm -rf -- "$staging"
 mkdir -p "$staging" "$out"
