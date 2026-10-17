@@ -20,6 +20,9 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
+    <release version="2.2.0" date="2026-10-17">
+      <description><p>Status LED rules: colour and effect for notifications per app, low battery, charging, full charge and media, with quiet hours. A battery charge limit on devices where it is confirmed to work, in a new Other page. New app icon.</p></description>
+    </release>
     <release version="2.1.0" date="2026-10-17">
       <description><p>A home page shows the device, its processor and memory. Galaxy Companion can update itself from its own releases, without a port update. On narrow windows the pages move to a menu in the header bar.</p></description>
     </release>

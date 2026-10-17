@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!--
+    The battery charge limit only ever stops charging early; like a power
+    profile, the person at the device may change it without a password.
+-->
+<policyconfig>
+  <vendor>Galaxy Companion</vendor>
+  <vendor_url>https://github.com/agcarbajo/galaxy-companion</vendor_url>
+
+  <action id="io.github.agcarbajo.GalaxyCompanion.charge-limit">
+    <description>Change the battery charge limit</description>
+    <description xml:lang="es">Cambiar el límite de carga de la batería</description>
+    <message>Authentication is required to change the battery charge limit</message>
+    <message xml:lang="es">Se necesita autenticación para cambiar el límite de carga de la batería</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/galaxy-companion-charge-limit</annotate>
+  </action>
+</policyconfig>

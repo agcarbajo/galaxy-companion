@@ -5,10 +5,18 @@
   "form_factor": "phone",
   "soc": "Samsung Exynos 9810",
   "match": {
-    "compatible": ["samsung,star2lte"],
-    "model": ["Samsung Galaxy S9+ (SM-G965F)"]
+    "compatible": [
+      "samsung,star2lte"
+    ],
+    "model": [
+      "Samsung Galaxy S9+ (SM-G965F)"
+    ]
   },
-  "features": ["haptics"],
+  "features": [
+    "haptics",
+    "notification-led",
+    "charge-limit"
+  ],
   "port": {
     "name": "Galaxy S9+ mainline Linux",
     "website": "https://github.com/agcarbajo/galaxy-s9plus-mainline-linux",
@@ -17,5 +25,14 @@
   "haptics": {
     "vibrator_input": "max77693-haptic",
     "fixed_intensity": false
+  },
+  "notification_led": {
+    "led": "rgb:status",
+    "default_trigger": "max170xx_battery-charging-orange-full-green"
+  },
+  "charge_limit": {
+    "method": "charge-behaviour",
+    "battery": "max170xx_battery",
+    "charger": "max77705-charger"
   }
 }

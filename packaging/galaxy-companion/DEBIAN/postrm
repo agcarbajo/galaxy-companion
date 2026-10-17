@@ -3,12 +3,14 @@ set -e
 
 if [ "$1" = remove ] || [ "$1" = purge ]; then
 	systemctl disable --now galaxy-companion-spen-pairing.service >/dev/null 2>&1 || true
+	# Stopping it puts the charger back to charging.
+	systemctl disable --now galaxy-companion-charge-limit.service >/dev/null 2>&1 || true
 	systemctl --global disable galaxy-companion-haptics-enable.service >/dev/null 2>&1 || true
 	systemctl --global disable galaxy-companion-update-check.timer >/dev/null 2>&1 || true
 fi
 
 if [ "$1" = purge ]; then
-	rm -f /var/lib/galaxy-companion/spen-remote-enabled
+	rm -f /var/lib/galaxy-companion/spen-remote-enabled /var/lib/galaxy-companion/charge-limit.json
 fi
 
 if command -v glib-compile-schemas >/dev/null 2>&1; then

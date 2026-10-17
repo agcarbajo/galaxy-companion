@@ -12,6 +12,8 @@ from . import update_bundle
 from .actions import action_for, action_label, actions_for
 from .fingerprint_page import FingerprintPage
 from .home_page import HomePage
+from .led_page import LedPage
+from . import other_page
 from .update_page import UpdatePage
 from . import update_monitor
 from . import system_summary
@@ -233,6 +235,10 @@ class CompanionWindow(Adw.ApplicationWindow):
             self.view_stack.add_titled_with_icon(
                 self._haptics_page(), "haptics", _("Haptics"), "phone-symbolic"
             )
+        if has("notification-led"):
+            self.view_stack.add_titled_with_icon(
+                LedPage(self), "led", "LED", "galaxy-companion-led-symbolic"
+            )
         if boot_sets.available():
             self.view_stack.add_titled_with_icon(
                 self._system_page(), "dualboot", _("Dualboot"), "drive-multidisk-symbolic"
@@ -241,6 +247,11 @@ class CompanionWindow(Adw.ApplicationWindow):
             self.fingerprint_page = FingerprintPage(self)
             self.view_stack.add_titled_with_icon(
                 self.fingerprint_page, "fingerprint", _("Fingerprint"), "auth-fingerprint-symbolic"
+            )
+        # Odds and ends; only when at least one of them applies here.
+        if other_page.has_options():
+            self.view_stack.add_titled_with_icon(
+                other_page.OtherPage(self), "other", _("Other"), "view-more-symbolic"
             )
         if update_bundle.supported():
             self.update_page = UpdatePage(self)

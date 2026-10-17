@@ -49,6 +49,8 @@ FEATURES = (
     "flashlight",      # camera flash LED driven by a device helper
     "dual-boot",       # Android/Linux boot partition swapping
     "updates",         # whole-port updates published by the port
+    "notification-led",  # RGB status LED driven by user rules
+    "charge-limit",    # stop charging at a chosen battery level
 )
 
 # Input device names that are a vibration motor driven through FF_RUMBLE.
@@ -76,6 +78,8 @@ class Device:
     boot_partitions: tuple = ()
     dual_boot: dict = field(default_factory=dict)
     updates: dict = field(default_factory=dict)
+    notification_led: dict = field(default_factory=dict)
+    charge_limit: dict = field(default_factory=dict)
     port: dict = field(default_factory=dict)
     profile_path: str = ""
 
@@ -203,6 +207,8 @@ def build(data, compatible=(), model="", detected=frozenset()):
         ),
         dual_boot=data.get("dual_boot", {}),
         updates=data.get("updates", {}),
+        notification_led=data.get("notification_led", {}),
+        charge_limit=data.get("charge_limit", {}),
         port=data.get("port", {}),
         profile_path=data.get("profile_path", ""),
     )

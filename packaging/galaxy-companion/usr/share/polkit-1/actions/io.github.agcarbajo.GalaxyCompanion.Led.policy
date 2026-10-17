@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!--
+    The status LED is driven from the desktop user's session service, which
+    runs outside any logind session, so polkit sees it as "any".  The helper
+    only ever touches the LED the device profile names, with a colour and an
+    effect, which is harmless enough to need no password.
+-->
+<policyconfig>
+  <vendor>Galaxy Companion</vendor>
+  <vendor_url>https://github.com/agcarbajo/galaxy-companion</vendor_url>
+
+  <action id="io.github.agcarbajo.GalaxyCompanion.led">
+    <description>Change the colour of the status LED</description>
+    <description xml:lang="es">Cambiar el color del LED de estado</description>
+    <message>Authentication is required to change the status LED</message>
+    <message xml:lang="es">Se necesita autenticación para cambiar el LED de estado</message>
+    <defaults>
+      <allow_any>yes</allow_any>
+      <allow_inactive>yes</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/galaxy-companion-led</annotate>
+  </action>
+</policyconfig>

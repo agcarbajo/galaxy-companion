@@ -1,0 +1,13 @@
+[Unit]
+Description=Galaxy Companion battery charge limit
+After=systemd-modules-load.service
+
+[Service]
+Type=simple
+# Exits at once on a device without a confirmed charge limit.
+ExecStart=/usr/libexec/galaxy-companion-charge-limit daemon
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

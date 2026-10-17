@@ -64,6 +64,8 @@ own package, under `/usr/share/galaxy-companion/devices/<id>.json`.
 | `flashlight` | "Toggle the flashlight" action, through the device's helper | no |
 | `dual-boot` | Android/Linux boot partition switching | no |
 | `updates` | whole-port updates published as GitHub releases | no |
+| `notification-led` | LED page: rules for a multicolour status LED (notifications per app, battery, charging, media), quiet hours | no |
+| `charge-limit` | "Other" page: stop charging at a chosen level | no |
 
 The S Pen page appears with `spen` plus `spen-dock` or `spen-remote`: a bare
 digitizer has nothing to configure. A leading minus (`"-haptics"`) removes a
@@ -106,6 +108,12 @@ All sections are optional; only the ones a listed feature needs are read.
   "dual_boot": {"sets_dir": "/var/lib/gts9u-boot-sets",
                 "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules",
                 "android_data_partition": "sda34"},
+  "notification_led": {"led": "rgb:status",          // /sys/class/leds/<this>
+                       "default_trigger": "..."},   // given back when the rules are off
+  "charge_limit": {"method": "charge-behaviour",     // or "threshold"
+                   "battery": "max170xx_battery",    // /sys/class/power_supply/<this>
+                   "charger": "max77705-charger",    // has charge_behaviour (that method)
+                   "levels": [60, 65, 70, 75, 80, 85, 90, 95]},  // optional
   "updates": {"repository": "owner/repo", "device": "gts9uwifi",
               "identity_file": "/usr/lib/gts9u-release.json",
               "asset_pattern": "regex of the installation ZIP name",
@@ -142,3 +150,22 @@ from the device port granting the `input` group access.
 3. Ship it in the port's package or send it here under
    `packaging/galaxy-companion/usr/share/galaxy-companion/devices/`, and add the
    device to `scripts/test-device-profiles.py`.
+
+## Charge limit
+
+Only list `charge-limit` once stopping the charge has been seen to work on the
+device; a charger that ignores the request would make the option a lie.
+
+- `threshold`: the kernel keeps the limit (`charge_control_end_threshold` on
+  the battery, plus `charge_control_start_threshold` when present).
+- `charge-behaviour`: the charger only accepts `inhibit-charge` / `auto`
+  (`charge_behaviour`). `galaxy-companion-charge-limit.service` polls the
+  battery every minute, stops at the limit and resumes 5 points below; stopping
+  the service always resumes charging.
+
+## Status LED
+
+A multicolour LED class device (`multi_intensity`). The session backend picks
+the first rule that holds and drives the LED through `galaxy-companion-led`:
+steady, blinking (`timer` trigger) or breathing (`pattern` trigger, a slow
+blink without it). Turning the rules off restores `default_trigger`.

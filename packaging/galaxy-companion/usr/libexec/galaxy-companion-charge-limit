@@ -1,0 +1,75 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Battery charge limit.  Runs as root.
+
+    galaxy-companion-charge-limit daemon          the system service
+    galaxy-companion-charge-limit set on|off N    from the app, through pkexec
+"""
+import signal
+import subprocess
+import sys
+from pathlib import Path
+import time
+
+# Installed: /usr/libexec next to /usr/lib/galaxy-companion; same from a checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
+from galaxy_companion import charge_limit  # noqa: E402
+
+POLL_SECONDS = 60
+
+
+def daemon():
+    if not charge_limit.available():
+        return 0  # this device has no confirmed way to limit charging
+    wake = {"now": True}
+
+    def reload(*_args):
+        wake["now"] = True
+
+    def stop(*_args):
+        charge_limit.release()
+        sys.exit(0)
+
+    signal.signal(signal.SIGHUP, reload)
+    signal.signal(signal.SIGTERM, stop)
+    while True:
+        wake["now"] = False
+        try:
+            written = charge_limit.apply(charge_limit.load())
+            if written:
+                print(f"charge limit: {written}", flush=True)
+        except OSError as error:
+            print(f"charge limit: {error}", file=sys.stderr, flush=True)
+        for _ in range(POLL_SECONDS):
+            if wake["now"]:
+                break
+            time.sleep(1)
+
+
+def set_limit(argv):
+    if len(argv) != 2 or argv[0] not in ("on", "off") or not argv[1].isdigit():
+        print("usage: galaxy-companion-charge-limit set on|off <percent>", file=sys.stderr)
+        return 1
+    if not charge_limit.available():
+        print("this device has no charge limit", file=sys.stderr)
+        return 1
+    try:
+        charge_limit.save(argv[0] == "on", int(argv[1]))
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 1
+    subprocess.run(["systemctl", "reload-or-restart", "galaxy-companion-charge-limit.service"], check=False)
+    return 0
+
+
+def main(argv):
+    if argv[1:2] == ["daemon"]:
+        return daemon()
+    if argv[1:2] == ["set"]:
+        return set_limit(argv[2:])
+    print(__doc__, file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

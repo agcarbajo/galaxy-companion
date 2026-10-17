@@ -1,0 +1,84 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Drive the device's status LED.  Runs as root through pkexec.
+
+    galaxy-companion-led show <effect> <#rrggbb> <brightness 1-100>
+    galaxy-companion-led off
+    galaxy-companion-led restore      give the LED back to its kernel trigger
+
+The LED is the one the device profile names; callers cannot pick another.
+"""
+import re
+import sys
+from pathlib import Path
+
+# Installed: /usr/libexec next to /usr/lib/galaxy-companion; same from a checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
+from galaxy_companion import device, led_rules  # noqa: E402
+
+LEDS = Path("/sys/class/leds")
+
+
+def led_dir():
+    profile = device.current()
+    name = profile.notification_led.get("led", "") if profile.has("notification-led") else ""
+    # A class device name, never a path.
+    if not re.fullmatch(r"[A-Za-z0-9_:.-]+", name or "") or not (LEDS / name).is_dir():
+        raise SystemExit("this device has no status LED")
+    return LEDS / name, profile.notification_led
+
+
+def write(path, value):
+    (path).write_text(f"{value}\n")
+
+
+def triggers(led):
+    return (led / "trigger").read_text().replace("[", "").replace("]", "").split()
+
+
+def show(led, effect, color, brightness):
+    maximum = int((led / "max_brightness").read_text())
+    level = max(1, round(maximum * brightness / 100))
+    # Breathing needs the kernel's pattern trigger; without it, a slow blink.
+    if effect == "breathe" and "pattern" not in triggers(led):
+        effect = "blink-slow"
+    write(led / "trigger", "none")
+    red, green, blue = led_rules.rgb(color)
+    if (led / "multi_intensity").exists():
+        # The channels are relative; brightness scales them all.
+        write(led / "multi_intensity", f"{red} {green} {blue}")
+    if effect == "solid":
+        write(led / "brightness", level)
+    elif effect == "breathe":
+        write(led / "brightness", level)
+        write(led / "trigger", "pattern")
+        half = led_rules.BREATHE_MS
+        write(led / "pattern", f"0 {half} {level} {half}")
+    else:
+        on, off = led_rules.BLINK[effect]
+        write(led / "brightness", level)
+        write(led / "trigger", "timer")
+        write(led / "delay_on", on)
+        write(led / "delay_off", off)
+
+
+def main(argv):
+    led, settings = led_dir()
+    command = argv[1:2]
+    if command == ["off"] and len(argv) == 2:
+        write(led / "trigger", "none")
+        write(led / "brightness", 0)
+    elif command == ["restore"] and len(argv) == 2:
+        trigger = settings.get("default_trigger") or "none"
+        write(led / "trigger", trigger if trigger in triggers(led) else "none")
+    elif (command == ["show"] and len(argv) == 5 and argv[2] in dict(led_rules.EFFECTS)
+          and led_rules.COLOR.match(argv[3]) and argv[4].isdigit() and 1 <= int(argv[4]) <= 100):
+        show(led, argv[2], argv[3], int(argv[4]))
+    else:
+        print(__doc__, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

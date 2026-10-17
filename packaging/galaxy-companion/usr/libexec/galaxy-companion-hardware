@@ -24,6 +24,8 @@ import sys
 # relative path reaches the package tree next to this file.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/galaxy-companion"))
 from galaxy_companion import device as device_profile  # noqa: E402
+from galaxy_companion import led_rules  # noqa: E402
+from galaxy_companion.led_engine import LedEngine, notification_sources  # noqa: E402
 
 DEVICE = device_profile.current()
 
@@ -158,6 +160,7 @@ INTROSPECTION = """
   <interface name="io.github.agcarbajo.GalaxyCompanion.Hardware">
     <method name="TriggerMapping"><arg name="mapping" type="s" direction="in"/><arg name="accepted" type="b" direction="out"/></method>
     <method name="Vibrate"><arg name="duration_ms" type="u" direction="in"/><arg name="magnitude" type="u" direction="in"/><arg name="accepted" type="b" direction="out"/></method>
+    <method name="PreviewLed"><arg name="rule" type="s" direction="in"/><arg name="accepted" type="b" direction="out"/></method>
     <method name="BeginKeyboardCapture"/>
     <method name="FinishKeyboardCapture"><arg name="report" type="s" direction="out"/></method>
     <property name="PenState" type="s" access="read"/>
@@ -518,6 +521,7 @@ class HardwareService:
             "member='AddNotification',eavesdrop='true'",
         )
         self.last_notification_haptic = 0.0
+        self.led = LedEngine(self.settings) if DEVICE.has("notification-led") else None
         try:
             self.notification_bus = dbus.SessionBus()
             for rule in self.notification_matches:
@@ -535,8 +539,13 @@ class HardwareService:
                 ("org.freedesktop.Notifications", "Notify"),
                 ("org.gtk.Notifications", "AddNotification"),
             )
-            or not self.settings.get_boolean("notification-haptics-enabled")
         ):
+            return
+        led = getattr(self, "led", None)
+        if led is not None:
+            led.notification(notification_sources(
+                message.get_interface(), message.get_args_list()))
+        if not self.settings.get_boolean("notification-haptics-enabled"):
             return
         now = time.monotonic()
         # The session bus may expose both the original and routed method call.
@@ -1620,6 +1629,14 @@ class HardwareService:
         elif method == "TriggerMapping":
             mapping = params.unpack()[0]
             invocation.return_value(GLib.Variant("(b)", (self.execute_mapping(mapping),)))
+        elif method == "PreviewLed":
+            try:
+                rule = led_rules.clean(json.loads(params.unpack()[0] or "null"))
+            except ValueError:
+                rule = None
+            if self.led is not None and rule is not None:
+                self.led.show_preview(rule)
+            invocation.return_value(GLib.Variant("(b)", (self.led is not None and rule is not None,)))
         elif method == "Vibrate":
             duration_ms, magnitude = params.unpack()
             # Version 1 of the live Shell extension may remain cached until
@@ -1671,6 +1688,8 @@ class HardwareService:
             except dbus.DBusException:
                 pass
         self.haptics.close()
+        if getattr(self, "led", None) is not None:
+            self.led.close()
 
 
 def main():

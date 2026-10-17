@@ -4,6 +4,13 @@
        there carry over unchanged when this package replaces it. -->
   <schema id="io.github.agcarbajo.GalaxyCompanion" path="/io/github/agcarbajo/TabCompanion/">
     <key name="weekly-update-checks" type="b"><default>false</default></key>
+    <!-- Status LED: rules as a JSON list (see led_rules.py); empty = defaults. -->
+    <key name="led-enabled" type="b"><default>true</default></key>
+    <key name="led-rules" type="s"><default>''</default></key>
+    <key name="led-brightness" type="i"><range min="1" max="100"/><default>100</default></key>
+    <key name="led-quiet-enabled" type="b"><default>false</default></key>
+    <key name="led-quiet-start" type="i"><range min="0" max="23"/><default>23</default></key>
+    <key name="led-quiet-end" type="i"><range min="0" max="23"/><default>7</default></key>
     <key name="gesture-single-press" type="s"><default>'nothing'</default></key>
     <key name="gesture-double-press" type="s"><default>'nothing'</default></key>
     <key name="gesture-long-press" type="s"><default>'nothing'</default></key>

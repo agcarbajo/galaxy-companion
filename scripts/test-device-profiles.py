@@ -73,11 +73,12 @@ class ProfileTests(unittest.TestCase):
             self.assertTrue(found.has(feature), feature)
         self.assertEqual(dict((n, s) for n, s, _ in found.boot_partitions)["init_boot"], 8388608)
 
-    def test_galaxy_s9_plus_is_a_phone_with_haptics_only(self):
+    def test_galaxy_s9_plus_is_a_phone_with_haptics_led_and_charge_limit(self):
         found = self.resolve(("samsung,star2lte", "samsung,exynos9810"), "Samsung Galaxy S9+ (SM-G965F)",
                              names=["max77693-haptic", "gpio-keys"])
         self.assertEqual((found.id, found.form_factor), ("star2lte", "phone"))
-        self.assertEqual(found.features, frozenset({"haptics"}))
+        self.assertEqual(found.features, frozenset({"haptics", "notification-led", "charge-limit"}))
+        self.assertEqual(found.notification_led["led"], "rgb:status")
 
     def test_model_string_matches_when_compatible_does_not(self):
         found = self.resolve(("vendor,other",), "Samsung Galaxy S9+ (SM-G965F)")
@@ -150,12 +151,13 @@ class WindowPageTests(unittest.TestCase):
     def test_tab_s9_ultra_pages(self):
         pages = self.pages("gts9uwifi")
         # Dual boot also needs its helpers installed under /usr/libexec.
+        # No LED and no confirmed charge limit: neither page, and no "Other".
         expected = ["home", "pen", "keyboard", "haptics", "fingerprint", "updates"]
         self.assertEqual([p for p in pages if p != "dualboot"], expected)
 
     def test_galaxy_s9_plus_pages(self):
         pages = self.pages("star2lte")
-        self.assertEqual(pages[:2], ["home", "haptics"])
+        self.assertEqual(pages, ["home", "haptics", "led", "other"])
         for absent in ("pen", "keyboard", "dualboot", "updates"):
             self.assertNotIn(absent, pages)
 
