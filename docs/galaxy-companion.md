@@ -36,6 +36,55 @@ compatible Samsung keyboard covers. `galaxy-companion` installs it; it
 appears in GNOME's menu, and the user service applies the mappings even while
 the window is closed.
 
+## System updates
+
+The Updates page exists when the device profile has an `updates` section
+(repository, asset pattern, identity file, boot partitions, required
+packages). Everything below works from that profile; nothing names a device.
+
+**Same-suite updates** (format 1, or format 2 with `update_kind` `port` or
+`kernel`) are applied by Galaxy Companion: the ZIP's `UPDATE/manifest.json`
+and `UPDATE/debs/` are extracted, APT downloads the dependencies while the
+desktop is running, and after a restart the offline step backs up the boot
+partitions, `/usr/lib/modules` and `/etc`, installs the packages with
+`--no-remove`, writes the matching boot images and refreshes the dual boot's
+saved Linux set. If APT fails, the packages it unpacked are configured
+(`dpkg --configure -a`) and the previous boot images and modules are
+restored; only a failed restore leaves the device in emergency mode. The
+state lives in `/var/lib/galaxy-companion-update/`.
+
+**Ubuntu release upgrades** (format 2, `update_kind` `distribution`) are
+never applied by this code: the port that publishes the build ships the
+migration backend that knows its packages, partitions and recovery, and
+Galaxy Companion only verifies and starts it. The contract is:
+
+- The manifest declares `backend_strategy` `official-release-backend-v1`,
+  `backend_file` `UPDATE/updater.pyz`, `backend_entry_protocol` `1` and
+  `recovery` `full-system-root-v1`; `UPDATE/updater.pyz` is a Python zip
+  application listed in `files` with its size and SHA-256.
+- Trust comes from one of two places. A ZIP downloaded from the port's
+  GitHub release must match the published asset's tag, size and digest. A
+  local ZIP is accepted only after the page hashes the complete file, shows
+  the SHA-256 and the upgrade warning, and the user confirms; the privileged
+  helper receives that digest (`--trust-local-sha256`) and refuses a file
+  that no longer matches it.
+- The helper copies the ZIP and the backend to a private
+  `/var/lib/galaxy-companion-update/handoff/<id>/` (root, 0700), writes
+  `authorization.json` there (origin `github-verified` or `local-confirmed`,
+  SHA-256, size, tag, backend SHA-256), sets
+  `GALAXY_COMPANION_HANDOFF_SHA256` to the ZIP's digest and replaces itself
+  with `python3 updater.pyz --zip <retained ZIP> [--progress-json]`.
+- The backend calls `update_core.verified_handoff(archive, manifest,
+  program)` to confirm it was started this way under a matching record, and
+  must refuse to hand off again when the variable already carries its own
+  digest. It owns everything after that: resolver, staging, the restart unit,
+  boot writes and recovery, and it reports through the same `status.json`
+  and `--progress-json` events the page already understands.
+
+`scripts/test-update-readiness.py` and `scripts/test-system-update.py` cover
+the handoff, the authorization record, the offline failure path and the
+command-line contract without executing any bundled code.
+
 ## Architecture
 
 Companion 1.5.0 prepares the future update protocol and adds opt-in weekly

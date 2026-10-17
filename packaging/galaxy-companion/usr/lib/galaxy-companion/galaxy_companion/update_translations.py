@@ -43,6 +43,7 @@ ES = {
     "Copying the selected ZIP…": "Copiando el ZIP seleccionado…",
     "Downloading the update…": "Descargando la actualización…",
     "Verifying the build…": "Verificando la build…",
+    "This ZIP upgrades the Ubuntu release. The previous system root is retained for recovery.": "Este ZIP actualiza la versión de Ubuntu. El sistema anterior se conserva para poder recuperarlo.",
     "Preparing packages…": "Preparando los paquetes…",
     "Ready to install": "Lista para instalar",
     "{done} of {total}": "{done} de {total}",

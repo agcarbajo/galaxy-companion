@@ -426,7 +426,37 @@ class UpdatePage(Adw.PreferencesPage):
         path = chooser.get_file().get_path() if response == Gtk.ResponseType.ACCEPT else None
         chooser.destroy()
         if path:
-            self._confirm(["--zip", path], path)
+            self.busy = True
+            self._refresh()
+            self._hero("Verifying the build…", str(path), spinning=True)
+            def worker():
+                # Hash and read the manifest off the main loop: a release ZIP
+                # is over a gigabyte.  The digest is what the user confirms.
+                try:
+                    file = Path(path)
+                    if file.is_symlink() or not file.is_file():
+                        raise ValueError("Select a regular build ZIP")
+                    manifest = bundle.inspect(path)
+                    digest, error = bundle.sha256(path), None
+                except Exception as exc:
+                    manifest, digest, error = None, None, str(exc)
+                GLib.idle_add(self._local_verified, path, manifest, digest, error)
+            threading.Thread(target=worker, daemon=True).start()
+
+    def _local_verified(self, path, manifest, digest, error):
+        self.busy = False
+        self._refresh()
+        self.spinner.set_spinning(False)
+        if error:
+            self._hero("The update did not complete", "Open the technical details to see what happened.", "dialog-warning-symbolic")
+            self._line(error)
+            self.details.set_expanded(True)
+        else:
+            label = str(path) + "\n\nSHA-256: " + digest
+            if manifest.get("update_kind") == "distribution":
+                label += "\n\n" + _("This ZIP upgrades the Ubuntu release. The previous system root is retained for recovery.")
+            self._confirm(["--zip", path, "--trust-local-sha256", digest], label)
+        return False
 
     def _confirm(self, args, label):
         dialog = Adw.MessageDialog(transient_for=self.window, modal=True,

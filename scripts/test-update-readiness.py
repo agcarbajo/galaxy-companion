@@ -155,12 +155,47 @@ class HandoffTests(unittest.TestCase):
                 execute.assert_not_called()
                 self.assertFalse((self.root / "handoff").exists())
 
+    def test_confirmed_local_zip_does_not_require_publication_and_pins_the_complete_file(self):
+        if os.geteuid() != 0:
+            self.skipTest("Root-owned authorization records require the isolated Linux root test environment")
+        class Dispatched(BaseException):
+            pass
+        digest = core.bundle.sha256(self.archive)
+        with patch.object(core, "STATE", self.root), patch.dict(os.environ, {core.HANDOFF_ENV: ""}), \
+                patch.object(core.bundle, "release") as official, \
+                patch.object(core.os, "execv", side_effect=Dispatched) as execute:
+            with self.assertRaises(Dispatched):
+                core.handoff_release_backend(self.archive, self.manifest, trusted_local_sha256=digest)
+            official.assert_not_called()
+            argv = execute.call_args.args[1]
+            backend, retained = Path(argv[1]), Path(argv[3])
+            self.assertTrue(core.verified_handoff(retained, self.manifest, backend))
+            authorization = backend.parent / "authorization.json"
+            self.assertEqual(authorization.stat().st_mode & 0o777, 0o600)
+            record = json.loads(authorization.read_text())
+            self.assertEqual(record["origin"], "local-confirmed")
+            record["tag"] = "v9.9.9"
+            authorization.write_text(json.dumps(record))
+            with self.assertRaisesRegex(ValueError, "authorization"):
+                core.verified_handoff(retained, self.manifest, backend)
+
+    def test_wrong_local_digest_or_github_origin_never_executes(self):
+        for info, digest in ((None, "0" * 64), (self.info, core.bundle.sha256(self.archive))):
+            with patch.object(core, "STATE", self.root), patch.object(core.os, "execv") as execute:
+                with self.assertRaisesRegex(ValueError, "explicitly trusted"):
+                    core.handoff_release_backend(self.archive, self.manifest, info, trusted_local_sha256=digest)
+                execute.assert_not_called()
+
+    def test_unverified_start_is_not_a_handoff(self):
+        with patch.object(core, "STATE", self.root), patch.dict(os.environ, {core.HANDOFF_ENV: ""}):
+            self.assertFalse(core.verified_handoff(self.archive, self.manifest, self.root / "updater.pyz"))
+
     def test_authenticated_backend_is_retained_and_exec_uses_fixed_arguments(self):
         class Dispatched(BaseException):
             pass
         with patch.object(core, "STATE", self.root), patch.object(core, "run") as run, \
              patch.object(core, "owned_directory", side_effect=lambda path: path.mkdir()), \
-             patch.dict(os.environ, {"GTS9U_UPDATER_HANDOFF": ""}), \
+             patch.dict(os.environ, {core.HANDOFF_ENV: ""}), \
              patch.object(core.bundle, "release", return_value=self.info) as official, \
              patch.object(core.os, "execv", side_effect=Dispatched) as execute:
             with self.assertRaises(Dispatched):
@@ -175,7 +210,7 @@ class HandoffTests(unittest.TestCase):
             self.assertEqual(Path(argv[3]).stat().st_mode & 0o777, 0o600)
 
     def test_recursive_handoff_is_blocked(self):
-        with patch.dict(os.environ, {"GTS9U_UPDATER_HANDOFF": self.info["sha256"]}), \
+        with patch.dict(os.environ, {core.HANDOFF_ENV: self.info["sha256"]}), \
              patch.object(core.os, "execv") as execute:
             with self.assertRaisesRegex(ValueError, "recursive"):
                 core.handoff_release_backend(self.archive, self.manifest, self.info)

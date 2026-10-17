@@ -5,7 +5,8 @@ import subprocess
 from pathlib import Path
 
 PROTOCOL = 2
-CAPABILITIES = ("same-suite-packages", "matched-kernel-boot", "weekly-notifications", "official-release-backend-handoff")
+CAPABILITIES = ("same-suite-packages", "matched-kernel-boot", "weekly-notifications",
+                "official-release-backend-handoff", "confirmed-local-release-backend-handoff")
 CODENAME = re.compile(r"[a-z][a-z0-9]{1,31}\Z")
 
 
@@ -85,4 +86,5 @@ def check_installed(manifest, suite=None, installed_version=None, allow_handoff=
 
 def capabilities():
     return {"protocol": PROTOCOL, "capabilities": list(CAPABILITIES),
-            "distribution_migration": False, "release_backend_handoff": True}
+            "distribution_migration": False, "release_backend_handoff": True,
+            "confirmed_local_release_backend_handoff": True}

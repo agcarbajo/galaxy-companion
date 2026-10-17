@@ -2,8 +2,10 @@
 """Privileged preparation and offline application; never runs the ZIP installer."""
 import argparse
 import fcntl
+import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -28,6 +30,9 @@ UNIT = bundle.CONFIG.get("offline_unit", "galaxy-companion-offline-update.servic
 LOCK = bundle.CONFIG.get("lock", "/run/lock/galaxy-companion-boot.lock")
 ROOT_LABEL = bundle.CONFIG.get("root_label", "")
 REQUIRED_PACKAGES = set(bundle.CONFIG.get("required_packages", ()))
+# A release's own migration backend (UPDATE/updater.pyz) is started with the
+# retained ZIP's SHA-256 in this variable; it refuses to hand off again.
+HANDOFF_ENV = "GALAXY_COMPANION_HANDOFF_SHA256"
 
 
 def saved_set():
@@ -283,24 +288,29 @@ StandardError=journal+console
     run(["systemctl", "daemon-reload"])
 
 
-def handoff_release_backend(archive, manifest, info=None):
-    """Execute only the backend in an authenticated official stable ZIP.
+def handoff_release_backend(archive, manifest, info=None, trusted_local_sha256=None):
+    """Execute a published backend or one explicitly trusted by its local SHA-256.
 
-    This is the same publisher trust already required for privileged DEB
-    maintainer scripts. Metadata is a contract, not proof of migration safety.
-    Local ZIPs must match the exact published tag, size and GitHub digest too.
-    No APT, boot or installed application change precedes this handoff.
+    Metadata is a contract, not proof of publisher identity or migration safety.
+    GitHub downloads retain the exact stable tag, size and digest requirement.
+    Local approval applies only to the complete ZIP the user confirmed before
+    staging, by its SHA-256.  No APT, boot or installed application change
+    precedes this handoff.
     """
-    info = info or bundle.release(manifest["tag"])
     digest = bundle.sha256(archive)
-    if (not info.get("supports_updates") or info.get("tag") != manifest["tag"]
-            or info.get("size") != archive.stat().st_size or info.get("sha256") != digest):
-        raise ValueError("Release migration backends require the exact official stable ZIP and its published digest")
-    if os.environ.get("GTS9U_UPDATER_HANDOFF") == digest:
+    local = trusted_local_sha256 is not None
+    if local:
+        if info is not None or trusted_local_sha256 != digest:
+            raise ValueError("The local ZIP differs from the explicitly trusted SHA-256")
+    else:
+        info = info or bundle.release(manifest["tag"])
+        if (not info.get("supports_updates") or info.get("tag") != manifest["tag"]
+                or info.get("size") != archive.stat().st_size or info.get("sha256") != digest):
+            raise ValueError("Release migration backends require the exact official stable ZIP and its published digest")
+    if os.environ.get(HANDOFF_ENV) == digest:
         raise ValueError("The release backend did not implement this migration; refusing a recursive handoff")
     with zipfile.ZipFile(archive) as source:
         data = source.read("UPDATE/updater.pyz")
-    import hashlib
     entry = manifest["files"]["UPDATE/updater.pyz"]
     if len(data) != entry["size"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
         raise ValueError("Release backend checksum mismatch")
@@ -323,9 +333,17 @@ def handoff_release_backend(archive, manifest, info=None):
     os.chmod(source_zip, 0o600)
     if bundle.sha256(source_zip) != digest:
         raise ValueError("Release ZIP changed while being retained for migration")
+    # The backend reads this root-owned record back (verified_handoff) instead
+    # of asking GitHub again: it binds the ZIP's origin, size, digest and tag
+    # to the exact backend that was extracted from it.
+    approval = directory / "authorization.json"
+    write_json(approval, {"origin": "local-confirmed" if local else "github-verified",
+        "sha256": digest, "size": source_zip.stat().st_size, "tag": manifest["tag"],
+        "backend_sha256": entry["sha256"]})
+    os.chmod(approval, 0o600)
     os.sync()
     emit("Starting the verified release migration backend…")
-    os.environ["GTS9U_UPDATER_HANDOFF"] = digest
+    os.environ[HANDOFF_ENV] = digest
     # boot_lock is CLOEXEC: the new backend acquires its own lock and performs
     # its own model/power/source/backup checks. Keep the UI's progress protocol.
     command = ["/usr/bin/python3", str(backend), "--zip", str(source_zip)]
@@ -333,6 +351,34 @@ def handoff_release_backend(archive, manifest, info=None):
         command.append("--progress-json")
     os.execv(command[0], command)
     raise RuntimeError("Release backend handoff did not replace the process")
+
+
+def verified_handoff(archive, manifest, program):
+    """For a release backend: True when `archive` is the retained ZIP this
+    updater handed off together with `program`, under a matching
+    authorization record; False when the backend was started another way."""
+    digest = bundle.sha256(archive)
+    if (os.environ.get(HANDOFF_ENV) != digest or archive.parent != program.parent
+            or not archive.parent.is_relative_to(STATE / "handoff")):
+        return False
+    parent = archive.parent.lstat()
+    if not stat.S_ISDIR(parent.st_mode) or parent.st_uid != 0 or stat.S_IMODE(parent.st_mode) != 0o700:
+        raise ValueError("Unsafe release authorization directory")
+    approval = archive.parent / "authorization.json"
+    if not approval.exists():
+        return False
+    fd = os.open(approval, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as source:
+        info = os.fstat(source.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > 65536:
+            raise ValueError("Unsafe release authorization record")
+        value = json.loads(source.read(65537))
+    if (value.get("origin") not in ("local-confirmed", "github-verified") or value.get("sha256") != digest
+            or value.get("size") != archive.stat().st_size or value.get("tag") != manifest["tag"]
+            or value.get("backend_sha256") != bundle.sha256(program)
+            or value.get("backend_sha256") != manifest["files"]["UPDATE/updater.pyz"]["sha256"]):
+        raise ValueError("Release authorization no longer matches the ZIP and backend")
+    return True
 
 
 def prepare(args):
@@ -397,6 +443,9 @@ def prepare(args):
                     emit(f"Download: {done * 100 // total}%")
             bundle.download(info, archive, downloaded)
         progress("verify")
+        trusted_digest = getattr(args, "trust_local_sha256", None)
+        if trusted_digest is not None and bundle.sha256(archive) != trusted_digest:
+            raise ValueError("The selected ZIP changed after its local trust confirmation")
         manifest = bundle.inspect(archive)
         policy.check_installed(manifest, allow_handoff=True)
         payload_size = sum(f["size"] for f in manifest["files"].values())
@@ -405,7 +454,8 @@ def prepare(args):
         if info and manifest["tag"] != info["tag"]:
             raise ValueError("The payload version does not match the GitHub release")
         if manifest.get("update_kind") == "distribution":
-            handoff_release_backend(archive, manifest, info)
+            handoff_release_backend(archive, manifest, info,
+                trusted_local_sha256=getattr(args, "trust_local_sha256", None))
         emit("Verifying and extracting the update payload…")
         manifest = bundle.extract(archive, TRANSACTION)
         validate_packages(TRANSACTION, manifest)
@@ -535,7 +585,16 @@ def apply_offline():
         emit("Update installed. Restarting…")
     except Exception as error:
         recovery = ""
+        note = ""
         if (backup / "complete").exists():
+            # APT can stop half-way through unpacking.  Configure whatever was
+            # unpacked before restoring the old boot set, so the retained
+            # installation still reaches the desktop instead of booting with
+            # unconfigured device packages; the resume path runs the same step.
+            try:
+                run(["dpkg", "--force-confold", "--configure", "-a"], offline=True)
+            except Exception as configure_error:
+                note = "; package configuration incomplete: " + str(configure_error)
             try:
                 for part, size in bundle.PARTITIONS.items():
                     copy_partition(backup / (part + ".img"), devices[part], size)
@@ -551,8 +610,8 @@ def apply_offline():
                     shutil.copytree(backup / "ubuntu-set", saved)
             except Exception as restore_error:
                 recovery = "; boot restore failed: " + str(restore_error)
-        set_status("failed", error=str(error) + recovery)
-        emit("Update failed: " + str(error) + recovery)
+        set_status("failed", error=str(error) + note + recovery)
+        emit("Update failed: " + str(error) + note + recovery)
         # Keep the device in maintenance mode if restoring boot images failed.
         if recovery:
             run(["systemctl", "--no-block", "start", "emergency.target"])
@@ -567,6 +626,8 @@ def main(argv=None):
     global PROGRESS_JSON
     parser = argparse.ArgumentParser(description="Update this device's Ubuntu port without replacing user data")
     parser.add_argument("--progress-json", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--trust-local-sha256", metavar="SHA256",
+                        help="confirm a local ZIP by its complete SHA-256 so its own release backend may run")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--latest", action="store_true")
     group.add_argument("--zip", metavar="FILE")
@@ -577,6 +638,9 @@ def main(argv=None):
     group.add_argument("--cancel", action="store_true")
     group.add_argument("--apply-offline", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if args.trust_local_sha256 is not None and (not args.zip or not re.fullmatch(
+            r"[a-f0-9]{64}", args.trust_local_sha256)):
+        parser.error("--trust-local-sha256 requires --zip and its exact lowercase SHA-256")
     PROGRESS_JSON = args.progress_json
     if args.capabilities:
         print(json.dumps(policy.capabilities()))

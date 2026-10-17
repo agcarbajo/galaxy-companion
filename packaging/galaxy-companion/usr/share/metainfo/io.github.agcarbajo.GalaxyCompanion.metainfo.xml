@@ -20,6 +20,9 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
+    <release version="2.5.0" date="2026-10-17">
+      <description><p>System updates can install an Ubuntu release upgrade: a build ZIP whose manifest declares one hands off to the migration backend it carries, either from the port's published release or from a local file after its complete SHA-256 is shown and confirmed. A failed offline update now configures the packages it had unpacked before restoring the previous boot images. Both work from the device profile alone.</p></description>
+    </release>
     <release version="2.4.0" date="2026-10-17">
       <description><p>A status LED rule can light while the battery is within any range, such as 0 to 15 % or 50 to 80 %, with or without the charger. Closing a rule ends its try on the LED at once, and a stuck LED driver no longer keeps the LED frozen. The Advanced section explains what NAME is in the signal command.</p></description>
     </release>

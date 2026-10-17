@@ -33,6 +33,17 @@ With weekly checks on, it also sends a notification. The Dualboot Android app
 updates itself the same way, from the signed APK in the same releases.
 `scripts/publish-release.sh` runs the tests, builds both and publishes them.
 
+The device's port is updated from the **Updates** page when its profile has an
+`updates` section: the port publishes build ZIPs as GitHub releases, and the
+page downloads one, verifies it, stages its packages and matching boot images,
+and installs them after a restart with the previous boot set and modules kept
+for recovery. A ZIP whose manifest declares an **Ubuntu release upgrade** is
+not applied by Galaxy Companion itself: it hands off to the migration backend
+the ZIP carries (`UPDATE/updater.pyz`), either because the ZIP is the port's
+published release or because the user confirmed a local file by its complete
+SHA-256. The contract a port's backend has to meet is in
+[docs/galaxy-companion.md](docs/galaxy-companion.md#system-updates).
+
 ## Adding a device
 
 Each supported device has a small JSON profile describing its hardware. To add

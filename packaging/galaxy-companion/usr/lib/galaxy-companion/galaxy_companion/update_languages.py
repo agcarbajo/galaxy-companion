@@ -44,6 +44,7 @@ TRANSLATIONS = {
     "Copying the selected ZIP…": ("Copie du ZIP sélectionné…", "Ausgewählte ZIP-Datei wird kopiert…", "Copia dello ZIP selezionato…", "A copiar o ZIP selecionado…"),
     "Downloading the update…": ("Téléchargement de la mise à jour…", "Aktualisierung wird heruntergeladen…", "Download dell’aggiornamento…", "A descarregar a atualização…"),
     "Verifying the build…": ("Vérification de la version…", "Version wird überprüft…", "Verifica della versione…", "A verificar a versão…"),
+    "This ZIP upgrades the Ubuntu release. The previous system root is retained for recovery.": ("Ce ZIP met à niveau la version d’Ubuntu. Le système précédent est conservé pour la récupération.", "Diese ZIP-Datei aktualisiert die Ubuntu-Version. Das bisherige System bleibt zur Wiederherstellung erhalten.", "Questo ZIP aggiorna la versione di Ubuntu. Il sistema precedente viene conservato per il ripristino.", "Este ZIP atualiza a versão do Ubuntu. O sistema anterior é mantido para recuperação."),
     "Preparing packages…": ("Préparation des paquets…", "Pakete werden vorbereitet…", "Preparazione dei pacchetti…", "A preparar os pacotes…"),
     "Ready to install": ("Prêt à installer", "Bereit zur Installation", "Pronto per l’installazione", "Pronto para instalar"),
     "{done} of {total}": ("{done} sur {total}", "{done} von {total}", "{done} di {total}", "{done} de {total}"),
