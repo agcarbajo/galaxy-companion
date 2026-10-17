@@ -1,0 +1,9 @@
+# Scripts run in WSL and on the tablet from any checkout, Windows included:
+# every text file is committed and checked out with LF line endings.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jar binary
+*.apk binary
+*.keystore binary
+*.jks binary
