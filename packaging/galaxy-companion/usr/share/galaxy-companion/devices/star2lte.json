@@ -15,7 +15,8 @@
   "features": [
     "haptics",
     "notification-led",
-    "charge-limit"
+    "charge-limit",
+    "bixby-key"
   ],
   "port": {
     "name": "Galaxy S9+ mainline Linux",
@@ -34,5 +35,9 @@
     "method": "charge-behaviour",
     "battery": "max170xx_battery",
     "charger": "max77705-charger"
+  },
+  "bixby_key": {
+    "input": "gpio-keys",
+    "code": 212
   }
 }

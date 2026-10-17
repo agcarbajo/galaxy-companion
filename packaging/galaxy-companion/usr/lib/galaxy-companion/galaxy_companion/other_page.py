@@ -3,13 +3,14 @@
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from . import charge_limit
+from . import device
 from .i18n import _
 
 CHARGE_HELPER = "/usr/libexec/galaxy-companion-charge-limit"
 
 
 def has_options():
-    return charge_limit.available()
+    return charge_limit.available() or device.current().has("bixby-key")
 
 
 class OtherPage(Adw.PreferencesPage):
@@ -18,8 +19,23 @@ class OtherPage(Adw.PreferencesPage):
         self.window = window
         self.set_margin_top(18)
         self.set_margin_bottom(18)
+        if device.current().has("bixby-key"):
+            self.add(self._bixby_group())
         if charge_limit.available():
             self.add(self._battery_group())
+
+    # -- Bixby button ---------------------------------------------------------
+
+    def _bixby_group(self):
+        """The same actions and chooser as the S Pen button."""
+        group = Adw.PreferencesGroup(title=_("Bixby button"), description=_(
+            "Choose what the side button below the volume keys does."))
+        for gesture, title, subtitle in (
+                ("single-press", _("Single press"), _("Press and release the Bixby button")),
+                ("double-press", _("Double press"), _("Press the button twice")),
+                ("long-press", _("Press and hold"), _("Keep the button pressed"))):
+            group.add(self.window._action_row(f"bixby-{gesture}", title, subtitle))
+        return group
 
     # -- battery charge limit --------------------------------------------------
 

@@ -66,6 +66,7 @@ own package, under `/usr/share/galaxy-companion/devices/<id>.json`.
 | `updates` | whole-port updates published as GitHub releases | no |
 | `notification-led` | LED page: rules for a multicolour status LED (notifications per app, battery, charging, media), quiet hours | no |
 | `charge-limit` | "Other" page: stop charging at a chosen level | no |
+| `bixby-key` | "Other" page: single, double and long press of the Bixby button, with the S Pen's actions | no |
 
 The S Pen page appears with `spen` plus `spen-dock` or `spen-remote`: a bare
 digitizer has nothing to configure. A leading minus (`"-haptics"`) removes a
@@ -110,6 +111,7 @@ All sections are optional; only the ones a listed feature needs are read.
                 "android_data_partition": "sda34"},
   "notification_led": {"led": "rgb:status",          // /sys/class/leds/<this>
                        "default_trigger": "..."},   // given back when the rules are off
+  "bixby_key": {"input": "gpio-keys", "code": 212},  // evdev name and key code; read, never grabbed
   "charge_limit": {"method": "charge-behaviour",     // or "threshold"
                    "battery": "max170xx_battery",    // /sys/class/power_supply/<this>
                    "charger": "max77705-charger",    // has charge_behaviour (that method)

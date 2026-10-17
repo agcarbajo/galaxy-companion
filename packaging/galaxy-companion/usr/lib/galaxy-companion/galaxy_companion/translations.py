@@ -4,6 +4,9 @@
 # Each tuple is (es, fr, de, it, pt). English is the source/fallback language.
 LANGUAGE_INDEX = {"es": 0, "fr": 1, "de": 2, "it": 3, "pt": 4}
 TRANSLATIONS = {
+    "Bixby button": ("Botón de Bixby", "Bouton Bixby", "Bixby-Taste", "Tasto Bixby", "Botão Bixby"),
+    "Choose what the side button below the volume keys does.": ("Elige qué hace el botón lateral que está debajo de los de volumen.", "Choisissez l’action du bouton latéral situé sous les touches de volume.", "Lege fest, was die Seitentaste unter den Lautstärketasten tut.", "Scegli cosa fa il tasto laterale sotto quelli del volume.", "Escolha o que faz o botão lateral por baixo dos de volume."),
+    "Press and release the Bixby button": ("Pulsa y suelta el botón de Bixby", "Appuyez sur le bouton Bixby et relâchez-le", "Bixby-Taste drücken und loslassen", "Premi e rilascia il tasto Bixby", "Prima e solte o botão Bixby"),
     "A custom signal is on": ("Señal personalizada activa", "Un signal personnalisé est actif", "Ein eigenes Signal ist an", "Un segnale personalizzato è attivo", "Um sinal personalizado está ativo"),
     "A command succeeds": ("Comando con éxito", "Une commande réussit", "Ein Befehl ist erfolgreich", "Un comando ha successo", "Um comando termina com êxito"),
     "Signal “{name}”": ("Señal «{name}»", "Signal « {name} »", "Signal „{name}“", "Segnale «{name}»", "Sinal «{name}»"),

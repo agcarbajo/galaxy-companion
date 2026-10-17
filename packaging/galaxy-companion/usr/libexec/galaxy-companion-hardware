@@ -446,6 +446,74 @@ class ForceFeedback:
             self.fd = None
 
 
+class ButtonGestures:
+    """Single press, double press and press-and-hold from one key.
+
+    A single press waits for a possible second one only when double press
+    does something; otherwise it fires on release, with no delay.
+    """
+    LONG_MS = 600
+    DOUBLE_MS = 300
+
+    def __init__(self, prefix, settings, execute):
+        self.prefix = prefix
+        self.settings = settings
+        self.execute = execute
+        self.pressed = False
+        self.long_fired = False
+        self.long_timer = None
+        self.single_timer = None
+
+    def _mapping(self, gesture):
+        return f"{self.prefix}-{gesture}"
+
+    def _has(self, gesture):
+        return self.settings.get_string(self._mapping(gesture)) != "nothing"
+
+    def press(self):
+        if self.pressed:
+            return
+        self.pressed = True
+        self.long_fired = False
+        self.long_timer = GLib.timeout_add(self.LONG_MS, self._long)
+
+    def release(self):
+        if not self.pressed:
+            return
+        self.pressed = False
+        if self.long_timer is not None:
+            GLib.source_remove(self.long_timer)
+            self.long_timer = None
+        if self.long_fired:
+            return
+        if self.single_timer is not None:
+            GLib.source_remove(self.single_timer)
+            self.single_timer = None
+            self.execute(self._mapping("double-press"))
+        elif self._has("double-press"):
+            self.single_timer = GLib.timeout_add(self.DOUBLE_MS, self._single)
+        else:
+            self.execute(self._mapping("single-press"))
+
+    def _long(self):
+        self.long_timer = None
+        if self.pressed:
+            self.long_fired = True
+            self.execute(self._mapping("long-press"))
+        return GLib.SOURCE_REMOVE
+
+    def _single(self):
+        self.single_timer = None
+        self.execute(self._mapping("single-press"))
+        return GLib.SOURCE_REMOVE
+
+    def close(self):
+        for timer in (self.long_timer, self.single_timer):
+            if timer is not None:
+                GLib.source_remove(timer)
+        self.long_timer = self.single_timer = None
+
+
 class HardwareService:
     def __init__(self):
         self.connection = None
@@ -498,10 +566,11 @@ class HardwareService:
             "changed::spen-remote-mode", self._remote_mode_changed
         )
         self._migrate_keyboard_codes()
-        # Only a cover to relay or a pen whose actions press keys needs the
-        # virtual keyboard; elsewhere it would be a phantom input device.
+        # Only a cover to relay, or a pen or Bixby button whose actions press
+        # keys, needs the virtual keyboard; elsewhere it would be a phantom
+        # input device.
         self.virtual_keyboard = None
-        if DEVICE.has("keyboard-cover") or DEVICE.has("spen"):
+        if DEVICE.has("keyboard-cover") or DEVICE.has("spen") or DEVICE.has("bixby-key"):
             try:
                 self.virtual_keyboard = VirtualKeyboard()
                 self.virtual_watch = GLib.io_add_watch(
@@ -523,6 +592,9 @@ class HardwareService:
         )
         self.last_notification_haptic = 0.0
         self.led = LedEngine(self.settings) if DEVICE.has("notification-led") else None
+        self.bixby_fd = None
+        self.bixby_watch = None
+        self.bixby = ButtonGestures("bixby", self.settings, self.execute_mapping)
         try:
             self.notification_bus = dbus.SessionBus()
             for rule in self.notification_matches:
@@ -1348,6 +1420,65 @@ class HardwareService:
                 self._pen_button(value == 1)
         return GLib.SOURCE_CONTINUE
 
+    # -- Bixby button --------------------------------------------------------
+
+    @staticmethod
+    def _find_bixby_event():
+        name = DEVICE.bixby_key.get("input", "") if DEVICE.has("bixby-key") else ""
+        if not name:
+            return None
+        for path in sorted(glob("/sys/class/input/event*")):
+            if read_text(Path(path) / "device/name") == name:
+                return "/dev/input/" + Path(path).name
+        return None
+
+    def _ensure_bixby_reader(self):
+        """Read the Bixby key's device without grabbing it: it usually shares
+        gpio-keys with power and volume, which must keep working."""
+        if self.bixby_fd is not None:
+            return
+        path = self._find_bixby_event()
+        if not path:
+            return
+        try:
+            self.bixby_fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        except OSError:
+            self.bixby_fd = None
+            return
+        self.bixby_watch = GLib.io_add_watch(
+            self.bixby_fd, GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, self._bixby_event
+        )
+
+    def _close_bixby_reader(self):
+        if self.bixby_watch is not None:
+            GLib.source_remove(self.bixby_watch)
+            self.bixby_watch = None
+        if self.bixby_fd is not None:
+            os.close(self.bixby_fd)
+            self.bixby_fd = None
+        self.bixby.close()
+
+    def _bixby_event(self, _source, condition):
+        if condition & (GLib.IO_HUP | GLib.IO_ERR):
+            self._close_bixby_reader()
+            return GLib.SOURCE_REMOVE
+        try:
+            data = os.read(self.bixby_fd, INPUT_EVENT.size * 32)
+        except BlockingIOError:
+            return GLib.SOURCE_CONTINUE
+        except OSError:
+            data = b""
+        if not data:
+            self._close_bixby_reader()
+            return GLib.SOURCE_REMOVE
+        code = int(DEVICE.bixby_key.get("code", 0))
+        for offset in range(0, len(data) - INPUT_EVENT.size + 1, INPUT_EVENT.size):
+            _sec, _usec, event_type, event_code, value = INPUT_EVENT.unpack_from(data, offset)
+            # 2 is autorepeat: holding is already measured by the long press.
+            if event_type == EV_KEY and event_code == code and value in (0, 1):
+                (self.bixby.press if value else self.bixby.release)()
+        return GLib.SOURCE_CONTINUE
+
     def _pen_button(self, pressed):
         if not self._remote_effective():
             return
@@ -1476,7 +1607,7 @@ class HardwareService:
         return GLib.SOURCE_REMOVE
 
     def execute_mapping(self, mapping):
-        if mapping not in MAPPINGS and not mapping.startswith("gesture-"):
+        if mapping not in MAPPINGS and not mapping.startswith(("gesture-", "bixby-")):
             return False
         action = self.settings.get_string(mapping)
         if action == "nothing":
@@ -1540,6 +1671,7 @@ class HardwareService:
         self._sync_remote_control()
         self._ensure_keyboard_reader()
         self._ensure_pen_reader()
+        self._ensure_bixby_reader()
         self._refresh_spen_ble(objects)
         if not self.haptics.available and int(time.monotonic()) % 5 == 0:
             self.haptics = ForceFeedback()
@@ -1673,6 +1805,8 @@ class HardwareService:
         self.keyboard_capture.clear()
         self._close_keyboard_reader()
         self._close_pen_reader()
+        if getattr(self, "bixby_fd", None) is not None:
+            self._close_bixby_reader()
         for timer in (self.pen_long_timer, self.pen_single_timer):
             if timer is not None:
                 GLib.source_remove(timer)

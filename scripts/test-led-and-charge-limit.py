@@ -247,6 +247,56 @@ class ChargeLimitTests(unittest.TestCase):
         self.assertIn("no status LED", result.stderr)
 
 
+class BixbyButtonTests(unittest.TestCase):
+    """The backend's gesture detector, driven with fake key presses."""
+
+    def setUp(self):
+        import importlib.machinery, importlib.util
+        path = ROOT / "packaging/galaxy-companion/usr/libexec/galaxy-companion-hardware"
+        loader = importlib.machinery.SourceFileLoader("hardware_backend", str(path))
+        spec = importlib.util.spec_from_loader("hardware_backend", loader)
+        self.backend = importlib.util.module_from_spec(spec)
+        loader.exec_module(self.backend)
+
+    def gestures(self, double="nothing"):
+        done = []
+        settings = FakeSettings(**{"bixby-single-press": "screenshot", "bixby-double-press": double,
+                                   "bixby-long-press": "flashlight"})
+        return self.backend.ButtonGestures("bixby", settings, done.append), done
+
+    def spin(self, seconds):
+        context = led_engine.GLib.MainContext.default()
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            context.iteration(False)
+            time.sleep(0.005)
+
+    def test_single_press_fires_at_once_when_double_press_does_nothing(self):
+        button, done = self.gestures()
+        button.press(); button.release()
+        self.assertEqual(done, ["bixby-single-press"])
+
+    def test_double_press_and_single_press_with_a_double_mapping(self):
+        button, done = self.gestures(double="play-pause")
+        button.press(); button.release(); button.press(); button.release()
+        self.assertEqual(done, ["bixby-double-press"])
+        button.press(); button.release()
+        self.spin(0.45)
+        self.assertEqual(done, ["bixby-double-press", "bixby-single-press"])
+
+    def test_long_press_fires_once_and_not_a_single_press(self):
+        button, done = self.gestures()
+        button.press()
+        self.spin(0.75)
+        button.release()
+        self.assertEqual(done, ["bixby-long-press"])
+
+    def test_s9_plus_profile_maps_the_bixby_key(self):
+        found = device.current(refresh=True)
+        self.assertTrue(found.has("bixby-key"))
+        self.assertEqual((found.bixby_key["input"], found.bixby_key["code"]), ("gpio-keys", 212))
+
+
 class SignalCommandLineTests(unittest.TestCase):
     def test_bad_arguments_are_refused_before_any_bus_call(self):
         from galaxy_companion import main

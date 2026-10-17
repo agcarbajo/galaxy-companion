@@ -12,6 +12,10 @@
     <key name="led-quiet-enabled" type="b"><default>false</default></key>
     <key name="led-quiet-start" type="i"><range min="0" max="23"/><default>23</default></key>
     <key name="led-quiet-end" type="i"><range min="0" max="23"/><default>7</default></key>
+    <!-- Bixby button: same actions as the S Pen button. -->
+    <key name="bixby-single-press" type="s"><default>'nothing'</default></key>
+    <key name="bixby-double-press" type="s"><default>'nothing'</default></key>
+    <key name="bixby-long-press" type="s"><default>'nothing'</default></key>
     <key name="gesture-single-press" type="s"><default>'nothing'</default></key>
     <key name="gesture-double-press" type="s"><default>'nothing'</default></key>
     <key name="gesture-long-press" type="s"><default>'nothing'</default></key>

@@ -51,6 +51,7 @@ FEATURES = (
     "updates",         # whole-port updates published by the port
     "notification-led",  # RGB status LED driven by user rules
     "charge-limit",    # stop charging at a chosen battery level
+    "bixby-key",       # side Bixby button, mapped like the S Pen button
 )
 
 # Input device names that are a vibration motor driven through FF_RUMBLE.
@@ -80,6 +81,7 @@ class Device:
     updates: dict = field(default_factory=dict)
     notification_led: dict = field(default_factory=dict)
     charge_limit: dict = field(default_factory=dict)
+    bixby_key: dict = field(default_factory=dict)
     port: dict = field(default_factory=dict)
     profile_path: str = ""
 
@@ -209,6 +211,7 @@ def build(data, compatible=(), model="", detected=frozenset()):
         updates=data.get("updates", {}),
         notification_led=data.get("notification_led", {}),
         charge_limit=data.get("charge_limit", {}),
+        bixby_key=data.get("bixby_key", {}),
         port=data.get("port", {}),
         profile_path=data.get("profile_path", ""),
     )
