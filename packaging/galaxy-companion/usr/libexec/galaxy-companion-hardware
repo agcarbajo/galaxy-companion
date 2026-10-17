@@ -576,7 +576,10 @@ class HardwareService:
                 self.virtual_watch = GLib.io_add_watch(
                     self.virtual_keyboard.fd, GLib.IO_IN, self._virtual_output
                 )
-            except OSError:
+            except OSError as error:
+                # Every key action fails without it; say why once, here.
+                print(f"No virtual keyboard (/dev/uinput: {error.strerror}): "
+                      "button actions that press keys will do nothing", flush=True)
                 self.virtual_keyboard = None
         # Created on demand; see _sync_pointer().
         self.virtual_pointer = None
