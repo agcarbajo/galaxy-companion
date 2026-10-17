@@ -75,9 +75,30 @@ class RuleTests(unittest.TestCase):
                          "Steady · Orange")
 
 
+class CustomConditionTests(unittest.TestCase):
+    def test_signal_and_command_rules(self):
+        signal = led_rules.clean({"condition": "signal", "signal": "backup"})
+        self.assertTrue(led_rules.matches(signal, status(signals={"backup"})))
+        self.assertFalse(led_rules.matches(signal, status(signals={"other"})))
+        command = led_rules.clean({"condition": "command", "command": "true", "interval": 5})
+        self.assertEqual(command["interval"], 30, "never more often than every 30 s")
+        self.assertTrue(led_rules.matches(command, status(commands={"true": True})))
+        self.assertFalse(led_rules.matches(command, status(commands={"true": False})))
+        self.assertFalse(led_rules.matches(command, status()), "not run yet")
+
+    def test_bad_signal_names_are_dropped(self):
+        for name in ("../x", "a b", "x" * 65, "ñ"):
+            self.assertEqual(led_rules.clean({"condition": "signal", "signal": name})["signal"], "")
+
+    def test_advanced_rules_only_count_when_allowed(self):
+        rules = [led_rules.clean({"condition": "signal", "signal": "s"}), led_rules.new_rule("charging")]
+        self.assertEqual([r["condition"] for r in led_rules.usable(rules, False)], ["charging"])
+        self.assertEqual(len(led_rules.usable(rules, True)), 2)
+
+
 class FakeSettings:
     def __init__(self, **values):
-        self.values = {"led-enabled": True, "led-rules": "", "led-brightness": 60,
+        self.values = {"led-enabled": True, "led-rules": "", "led-brightness": 60, "led-advanced": False,
                        "led-quiet-enabled": False, "led-quiet-start": 23, "led-quiet-end": 7}
         self.values.update(values)
 
@@ -129,6 +150,34 @@ class EngineTests(unittest.TestCase):
         engine, calls = self.engine()
         engine.show_preview(led_rules.new_rule("media", color="#9141ac", effect="blink-fast"))
         self.assertEqual(calls[-1], ("show", "blink-fast", "#9141ac", "60"))
+
+    def test_signals_need_the_advanced_switch(self):
+        rules = json.dumps([led_rules.clean({"condition": "signal", "signal": "backup", "color": "#33d17a",
+                                             "effect": "solid"})])
+        engine, calls = self.engine(**{"led-rules": rules})
+        self.assertTrue(engine.set_signal("backup", True))
+        self.assertEqual(calls[-1], ("off",), "ignored while custom conditions are off")
+        engine, calls = self.engine(**{"led-rules": rules, "led-advanced": True})
+        engine.set_signal("backup", True)
+        self.assertEqual(calls[-1], ("show", "solid", "#33d17a", "60"))
+        engine.set_signal("backup", False)
+        self.assertEqual(calls[-1], ("off",))
+        self.assertFalse(engine.set_signal("../etc", True))
+
+    def test_commands_run_and_their_result_lights_the_led(self):
+        rules = json.dumps([led_rules.clean({"condition": "command", "command": cmd, "color": color,
+                                             "effect": "solid"})
+                            for cmd, color in (("exit 1", "#e01b24"), ("sleep 30", "#f6d32d"),
+                                               ("true", "#3584e4"))])
+        with patch.object(led_rules, "COMMAND_TIMEOUT", 1):
+            engine, calls = self.engine(**{"led-rules": rules, "led-advanced": True})
+            context = led_engine.GLib.MainContext.default()
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and len(engine.command_results) < 3:
+                context.iteration(False)
+                time.sleep(0.01)
+        self.assertEqual(engine.command_results, {"exit 1": False, "sleep 30": False, "true": True})
+        self.assertEqual(calls[-1], ("show", "solid", "#3584e4", "60"))
 
     def test_notification_sources(self):
         sources = led_engine.notification_sources(
@@ -196,6 +245,15 @@ class ChargeLimitTests(unittest.TestCase):
                                 env=dict(os.environ, GALAXY_COMPANION_DEVICE="gts9uwifi"))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("no status LED", result.stderr)
+
+
+class SignalCommandLineTests(unittest.TestCase):
+    def test_bad_arguments_are_refused_before_any_bus_call(self):
+        from galaxy_companion import main
+        with patch.object(main.Gio, "bus_get_sync", side_effect=AssertionError("no bus call")):
+            for args in ([], ["backup"], ["backup", "maybe"], ["bad name", "on"]):
+                with patch("sys.stderr"):
+                    self.assertEqual(main.led_signal(args), 2, args)
 
 
 REORDER = r"""

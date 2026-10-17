@@ -160,6 +160,7 @@ INTROSPECTION = """
   <interface name="io.github.agcarbajo.GalaxyCompanion.Hardware">
     <method name="TriggerMapping"><arg name="mapping" type="s" direction="in"/><arg name="accepted" type="b" direction="out"/></method>
     <method name="Vibrate"><arg name="duration_ms" type="u" direction="in"/><arg name="magnitude" type="u" direction="in"/><arg name="accepted" type="b" direction="out"/></method>
+    <method name="SetLedSignal"><arg name="name" type="s" direction="in"/><arg name="on" type="b" direction="in"/><arg name="accepted" type="b" direction="out"/></method>
     <method name="PreviewLed"><arg name="rule" type="s" direction="in"/><arg name="accepted" type="b" direction="out"/></method>
     <method name="BeginKeyboardCapture"/>
     <method name="FinishKeyboardCapture"><arg name="report" type="s" direction="out"/></method>
@@ -1629,6 +1630,10 @@ class HardwareService:
         elif method == "TriggerMapping":
             mapping = params.unpack()[0]
             invocation.return_value(GLib.Variant("(b)", (self.execute_mapping(mapping),)))
+        elif method == "SetLedSignal":
+            name, on = params.unpack()
+            accepted = self.led is not None and self.led.set_signal(name, on)
+            invocation.return_value(GLib.Variant("(b)", (accepted,)))
         elif method == "PreviewLed":
             try:
                 rule = led_rules.clean(json.loads(params.unpack()[0] or "null"))

@@ -169,3 +169,11 @@ A multicolour LED class device (`multi_intensity`). The session backend picks
 the first rule that holds and drives the LED through `galaxy-companion-led`:
 steady, blinking (`timer` trigger) or breathing (`pattern` trigger, a slow
 blink without it). Turning the rules off restores `default_trigger`.
+
+With "Custom conditions" on (LED page → Advanced), two more situations exist:
+
+- **A custom signal is on**: `galaxy-companion --led-signal NAME on|off` from
+  any script (D-Bus `SetLedSignal` on the session backend). Signals live until
+  logout.
+- **A command succeeds**: the backend runs it with `sh -c` as the user every
+  30-3600 s (10 s timeout); the rule holds while the last run exited 0.

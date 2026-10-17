@@ -23,7 +23,14 @@ CONDITIONS = (
     ("charging", N_("Charging")),
     ("charged", N_("Fully charged")),
     ("media", N_("Music or video is playing")),
+    ("signal", N_("A custom signal is on")),
+    ("command", N_("A command succeeds")),
 )
+# Offered only with "Custom conditions" on, and ignored while it is off.
+ADVANCED = frozenset({"signal", "command"})
+SIGNAL = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+COMMAND_INTERVAL = (30, 3600)   # seconds between runs: lower and upper bound
+COMMAND_TIMEOUT = 10            # seconds a run may take before it counts as failed
 EFFECTS = (
     ("solid", N_("Steady")),
     ("breathe", N_("Breathing")),
@@ -50,7 +57,8 @@ COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
 
 def new_rule(condition="notification", **values):
     rule = {"id": uuid.uuid4().hex[:8], "enabled": True, "condition": condition,
-            "app": "", "app_name": "", "threshold": 15, "color": "#3584e4", "effect": "breathe"}
+            "app": "", "app_name": "", "threshold": 15, "color": "#3584e4", "effect": "breathe",
+            "signal": "", "command": "", "interval": 60}
     rule.update(values)
     return rule
 
@@ -76,6 +84,13 @@ def clean(rule):
     out["app_name"] = str(rule.get("app_name") or "")[:200]
     try:
         out["threshold"] = min(95, max(5, int(rule.get("threshold", 15))))
+    except (TypeError, ValueError):
+        pass
+    if SIGNAL.match(str(rule.get("signal") or "")):
+        out["signal"] = rule["signal"]
+    out["command"] = str(rule.get("command") or "")[:500]
+    try:
+        out["interval"] = min(COMMAND_INTERVAL[1], max(COMMAND_INTERVAL[0], int(rule.get("interval", 60))))
     except (TypeError, ValueError):
         pass
     if COLOR.match(str(rule.get("color", ""))):
@@ -116,6 +131,11 @@ def title(rule):
         return _("Any notification")
     if condition == "battery-low":
         return _("Battery below {percent} %").format(percent=rule["threshold"])
+    if condition == "signal":
+        return _("Signal “{name}”").format(name=rule["signal"] or "…")
+    if condition == "command":
+        command = rule["command"] or "…"
+        return _("Command: {command}").format(command=command if len(command) <= 40 else command[:39] + "…")
     return _(dict(CONDITIONS)[condition])
 
 
@@ -159,7 +179,16 @@ def matches(rule, status):
         return state == "Full" or (status.get("plugged") and level is not None and level >= 100)
     if condition == "media":
         return bool(status.get("media"))
+    if condition == "signal":
+        return bool(rule["signal"]) and rule["signal"] in status.get("signals", ())
+    if condition == "command":
+        return bool(rule["command"]) and status.get("commands", {}).get(rule["command"]) is True
     return False
+
+
+def usable(rules, advanced):
+    """The rules the engine may consider: advanced ones only when allowed."""
+    return [rule for rule in rules if advanced or rule["condition"] not in ADVANCED]
 
 
 def choose(rules, status):

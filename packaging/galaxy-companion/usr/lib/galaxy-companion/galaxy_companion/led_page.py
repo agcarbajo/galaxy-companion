@@ -75,12 +75,29 @@ class RuleDialog(Adw.Dialog):
         self.set_child(toolbar)
 
         when = Adw.PreferencesGroup(title=_("When"))
+        # Custom conditions only with the advanced switch on, or when this
+        # rule already uses one (so editing it never silently changes it).
+        advanced = page.settings.get_boolean("led-advanced") or rule["condition"] in led_rules.ADVANCED
+        self.conditions = [(key, label) for key, label in led_rules.CONDITIONS
+                           if advanced or key not in led_rules.ADVANCED]
         self.condition = Adw.ComboRow(title=_("Situation"), model=Gtk.StringList.new(
-            [_(label) for _key, label in led_rules.CONDITIONS]))
-        keys = [key for key, _label in led_rules.CONDITIONS]
-        self.condition.set_selected(keys.index(rule["condition"]))
+            [_(label) for _key, label in self.conditions]))
+        self.condition.set_selected([key for key, _label in self.conditions].index(rule["condition"]))
         self.condition.connect("notify::selected", self._condition_changed)
         when.add(self.condition)
+
+        self.signal = Adw.EntryRow(title=_("Signal name"), text=rule["signal"], show_apply_button=True)
+        self.signal.connect("apply", self._signal_applied)
+        when.add(self.signal)
+        self.command = Adw.EntryRow(title=_("Command"), text=rule["command"], show_apply_button=True)
+        self.command.connect("apply", self._command_applied)
+        when.add(self.command)
+        self.interval = Adw.SpinRow(title=_("Run every"), subtitle=_("Seconds between runs"),
+                                    adjustment=Gtk.Adjustment(lower=led_rules.COMMAND_INTERVAL[0],
+                                                              upper=led_rules.COMMAND_INTERVAL[1],
+                                                              step_increment=30, value=rule["interval"]))
+        self.interval.connect("notify::value", self._interval_changed)
+        when.add(self.interval)
 
         self.apps = [("", _("Any app"))] + installed_apps()
         if rule["app"] and rule["app"] not in dict(self.apps):
@@ -155,6 +172,9 @@ class RuleDialog(Adw.Dialog):
         condition = self.rule["condition"]
         self.app.set_visible(condition == "notification")
         self.threshold.set_visible(condition == "battery-low")
+        self.signal.set_visible(condition == "signal")
+        self.command.set_visible(condition == "command")
+        self.interval.set_visible(condition == "command")
         for color, button in self.swatch_buttons.items():
             selected = color == self.rule["color"]
             if selected:
@@ -179,12 +199,29 @@ class RuleDialog(Adw.Dialog):
         self._sync()
 
     def _condition_changed(self, row, _pspec):
-        self.rule["condition"] = led_rules.CONDITIONS[row.get_selected()][0]
+        self.rule["condition"] = self.conditions[row.get_selected()][0]
         self._changed()
 
     def _app_changed(self, row, _pspec):
         app_id, name = self.apps[row.get_selected()]
         self.rule["app"], self.rule["app_name"] = app_id, name if app_id else ""
+        self._changed()
+
+    def _signal_applied(self, row):
+        name = row.get_text().strip()
+        if led_rules.SIGNAL.match(name):
+            row.remove_css_class("error")
+            self.rule["signal"] = name
+            self._changed()
+        else:
+            row.add_css_class("error")  # letters, digits, - and _ only
+
+    def _command_applied(self, row):
+        self.rule["command"] = row.get_text().strip()
+        self._changed()
+
+    def _interval_changed(self, row, _pspec):
+        self.rule["interval"] = int(row.get_value())
         self._changed()
 
     def _threshold_changed(self, row, _pspec):
@@ -269,11 +306,34 @@ class LedPage(Adw.PreferencesPage):
         reset_group.add(reset)
         self.add(reset_group)
 
+        # Last, for people who script their machines.
+        advanced = Adw.PreferencesGroup(title=_("Advanced"))
+        custom = Adw.SwitchRow(title=_("Custom conditions"), subtitle=_(
+            "Adds “A custom signal is on” and “A command succeeds” to the situations of a rule"))
+        self.settings.bind("led-advanced", custom, "active", Gio.SettingsBindFlags.DEFAULT)
+        advanced.add(custom)
+        usage = Adw.ActionRow(title=_("Turn a signal on or off from a script"),
+                              subtitle="galaxy-companion --led-signal NAME on|off",
+                              subtitle_selectable=True)
+        copy = Gtk.Button(icon_name="edit-copy-symbolic", tooltip_text=_("Copy"), valign=Gtk.Align.CENTER,
+                          css_classes=["flat"])
+        copy.connect("clicked", lambda _b: self.get_clipboard().set("galaxy-companion --led-signal NAME on"))
+        usage.add_suffix(copy)
+        advanced.add(usage)
+        commands = Adw.ActionRow(title=_("Commands"), subtitle=_(
+            "Run with sh as you, at most every 30 seconds; a command that takes longer than "
+            "10 seconds counts as failed. The rule holds while the last run succeeded."))
+        advanced.add(commands)
+        for row in (usage, commands):
+            self.settings.bind("led-advanced", row, "visible", Gio.SettingsBindFlags.GET)
+        self.add(advanced)
+
         # With the LED off, everything that only shapes what it shows is moot.
-        for widget in (brightness, self.rules_group, quiet, reset_group):
+        for widget in (brightness, self.rules_group, quiet, reset_group, advanced):
             self.settings.bind("led-enabled", widget, "sensitive", Gio.SettingsBindFlags.GET)
 
         self.settings.connect("changed::led-rules", lambda *_: self._reload())
+        self.settings.connect("changed::led-advanced", lambda *_: self._reload())
         self._reload()
 
     # -- rules ----------------------------------------------------------------
@@ -284,7 +344,10 @@ class LedPage(Adw.PreferencesPage):
             self.rules_group.remove(row)
         self.rule_rows = []
         for rule in self.rules:
-            row = Adw.ActionRow(title=led_rules.title(rule), subtitle=led_rules.subtitle(rule), activatable=True)
+            subtitle = led_rules.subtitle(rule)
+            if rule["condition"] in led_rules.ADVANCED and not self.settings.get_boolean("led-advanced"):
+                subtitle = _("Ignored: custom conditions are off")
+            row = Adw.ActionRow(title=led_rules.title(rule), subtitle=subtitle, activatable=True)
             row.add_prefix(color_dot(rule["color"]))
             # Prefixes stack towards the edge: added last, the handle sits leftmost.
             row.add_prefix(Gtk.Image(icon_name="list-drag-handle-symbolic", css_classes=["dim-label"],

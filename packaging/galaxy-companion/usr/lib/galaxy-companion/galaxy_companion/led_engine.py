@@ -70,6 +70,10 @@ class LedEngine:
         self.busy = False
         self.preview = None
         self.preview_timer = None
+        self.signals = set()       # turned on with `galaxy-companion --led-signal`
+        self.command_results = {}  # command -> bool, from its last run
+        self.command_due = {}      # command -> monotonic time of the next run
+        self.command_running = set()
         self.bus = None
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -78,7 +82,7 @@ class LedEngine:
                                       self._screensaver_changed)
         except GLib.Error:
             self.bus = None
-        for key in ("led-enabled", "led-rules", "led-brightness", "led-quiet-enabled",
+        for key in ("led-enabled", "led-rules", "led-brightness", "led-advanced", "led-quiet-enabled",
                     "led-quiet-start", "led-quiet-end"):
             settings.connect(f"changed::{key}", lambda *_: self.evaluate())
         self.timer = GLib.timeout_add_seconds(TICK_SECONDS, self._tick)
@@ -89,6 +93,58 @@ class LedEngine:
     def notification(self, sources):
         if sources:
             self.pending.append((time.monotonic(), sources))
+            self.evaluate()
+
+    def set_signal(self, name, on):
+        if not led_rules.SIGNAL.match(name or ""):
+            return False
+        (self.signals.add if on else self.signals.discard)(name)
+        self.evaluate()
+        return True
+
+    # -- custom commands ------------------------------------------------------
+
+    def _run_commands(self, rules):
+        """Start the command rules that are due; results arrive later."""
+        now = time.monotonic()
+        wanted = {rule["command"]: rule["interval"] for rule in rules
+                  if rule["condition"] == "command" and rule["enabled"] and rule["command"]}
+        for command in list(self.command_results):
+            if command not in wanted:  # rule deleted or changed: forget it
+                self.command_results.pop(command, None)
+                self.command_due.pop(command, None)
+        for command, interval in wanted.items():
+            if command in self.command_running or now < self.command_due.get(command, 0):
+                continue
+            self.command_due[command] = now + interval
+            self._spawn_command(command)
+
+    def _spawn_command(self, command):
+        try:
+            process = Gio.Subprocess.new(["sh", "-c", command],
+                                         Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE)
+        except GLib.Error:
+            self._command_done(command, False)
+            return
+        self.command_running.add(command)
+        # A command that hangs counts as failed and is stopped.
+        timeout = GLib.timeout_add_seconds(led_rules.COMMAND_TIMEOUT, lambda: process.force_exit() or False)
+
+        def finished(proc, result):
+            GLib.source_remove(timeout)
+            try:
+                proc.wait_finish(result)
+                ok = proc.get_if_exited() and proc.get_exit_status() == 0
+            except GLib.Error:
+                ok = False
+            self.command_running.discard(command)
+            self._command_done(command, ok)
+        process.wait_async(None, finished)
+
+    def _command_done(self, command, ok):
+        changed = self.command_results.get(command) != ok
+        self.command_results[command] = ok
+        if changed:
             self.evaluate()
 
     def _screensaver_changed(self, _bus, _sender, _path, _iface, _signal, params):
@@ -139,6 +195,9 @@ class LedEngine:
     def status(self, rules):
         status = power_status()
         status["notifications"] = [sources for _when, sources in self.pending]
+        status["signals"] = set(self.signals)
+        self._run_commands(rules)
+        status["commands"] = dict(self.command_results)
         if any(rule["condition"] == "media" and rule["enabled"] for rule in rules):
             status["media"] = self._media_playing()
         return status
@@ -156,7 +215,8 @@ class LedEngine:
                     self.settings.get_int("led-quiet-end")):
                 return ("off",)
             self._expire_seen()
-            rules = led_rules.load(self.settings.get_string("led-rules"))
+            rules = led_rules.usable(led_rules.load(self.settings.get_string("led-rules")),
+                                     self.settings.get_boolean("led-advanced"))
             rule = led_rules.choose(rules, self.status(rules))
         if rule is None:
             return ("off",)

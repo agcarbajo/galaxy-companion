@@ -5,6 +5,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
+import sys
 import threading
 from gi.repository import Adw, Gio, GLib
 
@@ -126,5 +127,34 @@ class CompanionApplication(Adw.Application):
         window.present()
 
 
+def led_signal(args):
+    """`galaxy-companion --led-signal NAME on|off`: for scripts, no window.
+
+    Talks to the session backend, which owns the LED rules; D-Bus starts it
+    if it is not running yet.
+    """
+    from . import led_rules
+    if len(args) != 2 or args[1] not in ("on", "off") or not led_rules.SIGNAL.match(args[0]):
+        print("usage: galaxy-companion --led-signal NAME on|off   (NAME: letters, digits, - and _)",
+              file=sys.stderr)
+        return 2
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        accepted = bus.call_sync(
+            "io.github.agcarbajo.GalaxyCompanion.Hardware", "/io/github/agcarbajo/GalaxyCompanion/Hardware",
+            "io.github.agcarbajo.GalaxyCompanion.Hardware", "SetLedSignal",
+            GLib.Variant("(sb)", (args[0], args[1] == "on")), GLib.VariantType.new("(b)"),
+            Gio.DBusCallFlags.NONE, 10000, None).unpack()[0]
+    except GLib.Error as error:
+        print(f"galaxy-companion: {error.message}", file=sys.stderr)
+        return 1
+    if not accepted:
+        print("galaxy-companion: this device has no status LED", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv):
+    if argv[1:2] == ["--led-signal"]:
+        return led_signal(argv[2:])
     return CompanionApplication().run(argv)
