@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        UpdateSchedule.apply(this)
         setContent { DualbootTheme { SwitcherScreen() } }
     }
 }
@@ -179,6 +180,9 @@ fun SwitcherScreen(vm: SwitcherViewModel = viewModel()) {
                     canSwitch = state.canSwitch,
                     onRefresh = { vm.refresh() },
                 )
+
+                SectionTitle(stringResource(R.string.section_updates))
+                UpdateCard()
                 Spacer(Modifier.height(8.dp))
             }
         }

@@ -81,4 +81,24 @@
     <string name="hint_no_linux_root">Linux was not found on the %1$s partition. Install it first; this app then saves Android\'s boot partitions by itself.</string>
     <string name="hint_no_linux_set">Android is saved. Linux has not saved its boot partitions yet: start Linux once after installing it and it does so by itself.</string>
     <string name="progress_backup_failed">Android\'s saved copy could not be brought up to date, so nothing was written. The detail is in the console.</string>
+    <string name="section_updates">Updates</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_none">You have the latest version.</string>
+    <string name="update_available">Version %1$s is available.</string>
+    <string name="update_install">Download and install</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_installing">Installing… Android may ask you to confirm.</string>
+    <string name="update_failed">Could not update</string>
+    <string name="update_error_network">Could not reach GitHub. Check the connection and try again.</string>
+    <string name="update_error_not_found">No version of this app has been published yet.</string>
+    <string name="update_error_checksum">The download does not match its checksum, so it was discarded.</string>
+    <string name="update_error_package">The download is not a newer version of this app.</string>
+    <string name="update_error_signature">The update is not signed with the same key as this app. Install it by hand, after uninstalling this one.</string>
+    <string name="update_error_install">Android did not install the update.</string>
+    <string name="update_weekly_title">Check every week</string>
+    <string name="update_weekly_body">Notifies you when a new version is published.</string>
+    <string name="notify_channel">Updates</string>
+    <string name="notify_title">Dualboot %1$s is available</string>
+    <string name="notify_body">Open the app to install it.</string>
 </resources>

@@ -29,8 +29,9 @@ Galaxy Companion updates itself from this repository's releases, separately
 from the device's port: the home page checks for a newer
 `galaxy-companion_<version>_all.deb`, verifies it against the release's
 `SHA256SUMS` and installs it through polkit (`galaxy-companion-self-update`).
-With weekly checks on, it also sends a notification. `scripts/publish-release.sh`
-runs the tests, builds the package and publishes both files.
+With weekly checks on, it also sends a notification. The Dualboot Android app
+updates itself the same way, from the signed APK in the same releases.
+`scripts/publish-release.sh` runs the tests, builds both and publishes them.
 
 ## Adding a device
 

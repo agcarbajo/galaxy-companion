@@ -65,4 +65,24 @@
     <string name="hint_no_linux_root">No se ha encontrado Linux en la partición %1$s. Instálalo primero; después esta app guarda sola las particiones de arranque de Android.</string>
     <string name="hint_no_linux_set">Android está guardado. Linux aún no ha guardado sus particiones de arranque: arráncalo una vez después de instalarlo y lo hará solo.</string>
     <string name="progress_backup_failed">No se pudo actualizar la copia guardada de Android, así que no se ha escrito nada. El detalle está en la consola.</string>
+    <string name="section_updates">Actualizaciones</string>
+    <string name="update_check">Buscar actualizaciones</string>
+    <string name="update_checking">Buscando actualizaciones…</string>
+    <string name="update_none">Tienes la última versión.</string>
+    <string name="update_available">Está disponible la versión %1$s.</string>
+    <string name="update_install">Descargar e instalar</string>
+    <string name="update_downloading">Descargando… %1$d%%</string>
+    <string name="update_installing">Instalando… Puede que Android te pida confirmación.</string>
+    <string name="update_failed">No se pudo actualizar</string>
+    <string name="update_error_network">No se pudo contactar con GitHub. Revisa la conexión y vuelve a intentarlo.</string>
+    <string name="update_error_not_found">Todavía no se ha publicado ninguna versión de esta app.</string>
+    <string name="update_error_checksum">La descarga no coincide con su suma de comprobación y se ha descartado.</string>
+    <string name="update_error_package">La descarga no es una versión más nueva de esta app.</string>
+    <string name="update_error_signature">La actualización no está firmada con la misma clave que esta app. Instálala a mano después de desinstalar esta.</string>
+    <string name="update_error_install">Android no ha instalado la actualización.</string>
+    <string name="update_weekly_title">Buscar cada semana</string>
+    <string name="update_weekly_body">Te avisa cuando se publica una versión nueva.</string>
+    <string name="notify_channel">Actualizaciones</string>
+    <string name="notify_title">Dualboot %1$s está disponible</string>
+    <string name="notify_body">Abre la app para instalarla.</string>
 </resources>

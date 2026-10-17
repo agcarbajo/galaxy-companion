@@ -67,6 +67,26 @@ class Prefs(context: Context) {
         prefs.edit().remove(KEY_TILE_BOOT).remove(KEY_TILE_LABEL).apply()
     }
 
+    /** Whether to look for a new version of this app once a week. On by default. */
+    var weeklyUpdateCheck: Boolean
+        get() = prefs.getBoolean(KEY_WEEKLY_UPDATE, true)
+        set(value) = prefs.edit().putBoolean(KEY_WEEKLY_UPDATE, value).apply()
+
+    /** The last version the weekly check announced, so it is announced once. */
+    var notifiedVersion: String?
+        get() = prefs.getString(KEY_NOTIFIED_VERSION, null)
+        set(value) = prefs.edit().putString(KEY_NOTIFIED_VERSION, value).apply()
+
+    /** Whether the notification permission was asked for already. */
+    var askedNotifications: Boolean
+        get() = prefs.getBoolean(KEY_ASKED_NOTIFICATIONS, false)
+        set(value) = prefs.edit().putBoolean(KEY_ASKED_NOTIFICATIONS, value).apply()
+
+    /** Why Android refused the last update, until the next attempt. */
+    var updateError: String?
+        get() = prefs.getString(KEY_UPDATE_ERROR, null)
+        set(value) = prefs.edit().putString(KEY_UPDATE_ERROR, value).apply()
+
     companion object {
         /** Identifies this boot, asking root for nothing: when the device started. */
         fun bootStamp(): Long = System.currentTimeMillis() - SystemClock.elapsedRealtime()
@@ -86,5 +106,9 @@ class Prefs(context: Context) {
         private const val KEY_STAGED_TARGET = "staged_target"
         private const val KEY_TILE_BOOT = "tile_boot"
         private const val KEY_TILE_LABEL = "tile_label"
+        private const val KEY_WEEKLY_UPDATE = "weekly_update_check"
+        private const val KEY_NOTIFIED_VERSION = "notified_version"
+        private const val KEY_UPDATE_ERROR = "update_error"
+        private const val KEY_ASKED_NOTIFICATIONS = "asked_notifications"
     }
 }

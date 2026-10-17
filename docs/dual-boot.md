@@ -161,18 +161,55 @@ Then run `ci/run-tests.sh` and `ci/android/build.sh`. The profile tests check
 that every profile with `dual-boot` has partitions, `linux_root` and
 `android_devices`. The app's tests check that it parses every shipped profile.
 
-## Building the Android app
+## Building and updating the Android app
 
 ```sh
-ci/android/build.sh      # Docker: JDK 17, Android SDK 35, Gradle 8.10
+ci/android/build.sh      # Docker: JDK 17, Android SDK 35, Gradle 8.10; debug APK + tests
 adb install -r android/dualboot/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 The build copies the device profiles into the APK, so rebuild after changing
-one. The debug build is signed with the build machine's debug key, so a build
-from another machine needs `adb uninstall` first. The app id is
-`io.github.agcarbajo.galaxycompanion.dualboot`; on the Tab it replaces the
-port's older `com.gts9u.bootswitcher`, which can be uninstalled.
+one. The app carries Galaxy Companion's version (2.3.0 is versionCode 20300)
+and is released with it.
+
+**Updates.** The app's *Updates* section looks for the newest release of
+this repository. A release carries `galaxy-companion-dualboot_<version>.apk`
+next to the `.deb`, and both are listed in its `SHA256SUMS`. *Download and
+install* only hands the APK to Android's installer after these checks pass:
+- the hash matches `SHA256SUMS`;
+- it is this app's package with a higher version;
+- it is signed with the same key as the installed app.
+
+Android then asks for confirmation, as for any update. With *Check every
+week* on, a background job notifies once per new version. While the
+repository is private, GitHub answers no one, so there is nothing to find.
+
+**Signing.** Android only installs an update signed like the installed app,
+so every published APK is signed with one release key. The key is kept out of
+the repository and must be backed up: losing it means users have to uninstall
+before installing a newer build. `DUALBOOT_SIGNING` names a properties file
+next to the key:
+
+```properties
+storeFile=dualboot-release.p12
+storePassword=…
+keyAlias=dualboot
+keyPassword=…
+```
+
+`DUALBOOT_SIGNING=…/dualboot-release.properties scripts/publish-release.sh`
+does the whole release:
+1. runs both test suites;
+2. builds the `.deb` and the signed APK;
+3. refuses an APK not signed with that key;
+4. writes `SHA256SUMS`;
+5. creates the GitHub release.
+
+Debug builds are signed with the build machine's debug key. A debug build
+does not update over a release build, or the other way round, without
+uninstalling first. The app id is `io.github.agcarbajo.galaxycompanion.dualboot`.
+On the Tab it replaces the port's older `com.gts9u.bootswitcher`, which can be
+uninstalled.
 
 ## When something goes wrong
 

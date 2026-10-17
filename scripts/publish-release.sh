@@ -1,8 +1,10 @@
 #!/bin/bash
-# Build the package and publish it as a GitHub release of this repository,
-# with the SHA256SUMS that Galaxy Companion's own updater requires.
-#   scripts/publish-release.sh            release the version in DEBIAN/control
-#   GH=../gh-agc.sh scripts/publish-release.sh   use another gh wrapper
+# Build the package and the Android Dualboot app and publish both as a GitHub
+# release of this repository, with the SHA256SUMS both updaters require.
+#   DUALBOOT_SIGNING=../keys/dualboot-release.properties scripts/publish-release.sh
+#   GH=../gh-agc.sh ...   use another gh wrapper
+# The APK must be signed with the release key every time: Android only
+# installs an update signed like the app already installed.
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
 gh=${GH:-gh}
@@ -12,11 +14,19 @@ code=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' "$repo/packaging/galaxy-companion/usr
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 deb=galaxy-companion_${version}_all.deb
+apk=galaxy-companion-dualboot_${version}.apk
+[ -f "${DUALBOOT_SIGNING:-}" ] || { echo "Set DUALBOOT_SIGNING to the release signing properties file" >&2; exit 1; }
 # The package is built in the CI image, so it is the same on any host.
 "$repo/ci/run-tests.sh"
 docker run --rm -v "$repo":/src:ro -v "$out":/out galaxy-companion-ci bash -c \
 	'cp -a /src /w && cd /w && UBUNTU_WORKDIR=/tmp/b DEB_OUT_DIR=/out bash scripts/build-companion-package.sh >/dev/null'
-(cd "$out" && sha256sum "$deb" > SHA256SUMS)
+"$repo/ci/android/build.sh" assembleRelease
+cp "$repo/android/dualboot/app/build/outputs/apk/release/app-release.apk" "$out/$apk"
+# An unsigned or debug-signed APK would never install over a released one.
+docker run --rm -v "$out":/out galaxy-companion-android bash -c \
+	"/opt/android-sdk/build-tools/35.0.0/apksigner verify --print-certs /out/$apk" | grep -q 'CN=Galaxy Companion Dualboot' \
+	|| { echo "$apk is not signed with the release key" >&2; exit 1; }
+(cd "$out" && sha256sum "$deb" "$apk" > SHA256SUMS)
 notes=$(python3 - "$repo/packaging/galaxy-companion/usr/share/metainfo/io.github.agcarbajo.GalaxyCompanion.metainfo.xml" "$version" <<'PY'
 import sys, xml.etree.ElementTree as ET
 for release in ET.parse(sys.argv[1]).iter("release"):
@@ -24,5 +34,5 @@ for release in ET.parse(sys.argv[1]).iter("release"):
         print(" ".join(p.text or "" for p in release.iter("p")))
 PY
 )
-"$gh" release create "v$version" "$out/$deb" "$out/SHA256SUMS" \
+"$gh" release create "v$version" "$out/$deb" "$out/$apk" "$out/SHA256SUMS" \
 	--repo agcarbajo/galaxy-companion --title "Galaxy Companion $version" --notes "$notes"

@@ -21,7 +21,7 @@
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
     <release version="2.3.0" date="2026-10-17">
-      <description><p>Dual boot works on any device whose profile lists its boot partitions, from one partition to several. Linux saves its own boot partitions at every start, and the new Dualboot Android app saves Android's, so nothing is set up by hand. The Bixby button can be mapped like the S Pen button.</p></description>
+      <description><p>Dual boot works on any device whose profile lists its boot partitions, from one partition to several. Linux saves its own boot partitions at every start, and the new Dualboot Android app saves Android's, so nothing is set up by hand; the app updates itself from these releases. The Bixby button can be mapped like the S Pen button.</p></description>
     </release>
     <release version="2.2.0" date="2026-10-17">
       <description><p>Status LED rules: colour and effect for notifications per app, low battery, charging, full charge and media, with quiet hours. A battery charge limit on devices where it is confirmed to work, in a new Other page. New app icon.</p></description>

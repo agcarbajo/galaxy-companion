@@ -65,4 +65,24 @@
     <string name="hint_no_linux_root">Linux est introuvable sur la partition %1$s. Installez-le d’abord ; cette application enregistrera ensuite d’elle-même les partitions de démarrage d’Android.</string>
     <string name="hint_no_linux_set">Android est enregistré. Linux n’a pas encore enregistré ses partitions de démarrage : démarrez-le une fois après l’installation et il le fera de lui-même.</string>
     <string name="progress_backup_failed">La copie enregistrée d’Android n’a pas pu être mise à jour, donc rien n’a été écrit. Le détail est dans la console.</string>
+    <string name="section_updates">Mises à jour</string>
+    <string name="update_check">Rechercher des mises à jour</string>
+    <string name="update_checking">Recherche de mises à jour…</string>
+    <string name="update_none">Vous avez la dernière version.</string>
+    <string name="update_available">La version %1$s est disponible.</string>
+    <string name="update_install">Télécharger et installer</string>
+    <string name="update_downloading">Téléchargement… %1$d%%</string>
+    <string name="update_installing">Installation… Android peut vous demander de confirmer.</string>
+    <string name="update_failed">Mise à jour impossible</string>
+    <string name="update_error_network">Impossible de joindre GitHub. Vérifiez la connexion et réessayez.</string>
+    <string name="update_error_not_found">Aucune version de cette application n’a encore été publiée.</string>
+    <string name="update_error_checksum">Le téléchargement ne correspond pas à sa somme de contrôle et a été supprimé.</string>
+    <string name="update_error_package">Le téléchargement n’est pas une version plus récente de cette application.</string>
+    <string name="update_error_signature">La mise à jour n’est pas signée avec la même clé que cette application. Installez-la à la main après avoir désinstallé celle-ci.</string>
+    <string name="update_error_install">Android n’a pas installé la mise à jour.</string>
+    <string name="update_weekly_title">Rechercher chaque semaine</string>
+    <string name="update_weekly_body">Vous prévient quand une nouvelle version est publiée.</string>
+    <string name="notify_channel">Mises à jour</string>
+    <string name="notify_title">Dualboot %1$s est disponible</string>
+    <string name="notify_body">Ouvrez l’application pour l’installer.</string>
 </resources>
