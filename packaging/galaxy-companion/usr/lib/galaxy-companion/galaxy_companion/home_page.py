@@ -110,7 +110,8 @@ class HomePage(Adw.PreferencesPage):
         self.update_spinner.set_visible(False)
 
     def _idle(self, version, subtitle=None):
-        self.update_row.set_subtitle(subtitle or _("Version {version}").format(version=version))
+        self.update_row.set_subtitle(subtitle or _("Version {version}").format(
+            version=app_update.shown_version(version)))
         self._button(_("Check for Updates"), self._check)
 
     def _update_clicked(self, _button):
@@ -145,7 +146,8 @@ class HomePage(Adw.PreferencesPage):
             self.update_row.set_subtitle(_("Version {version} is available").format(version=info["version"]))
             self._button(_("Update"), self._download, suggested=True)
         else:
-            self._idle(installed, _("Version {version} · Up to date").format(version=installed))
+            self._idle(installed, _("Version {version} · Up to date").format(
+                version=app_update.shown_version(installed)))
         return False
 
     def _download(self):

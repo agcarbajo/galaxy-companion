@@ -68,6 +68,11 @@ def installed():
     return DEBIAN_VERSION
 
 
+def shown_version(version):
+    """A version as people read it: no Debian epoch ("1:0.9.0" is 0.9.0)."""
+    return version.rpartition(":")[2]
+
+
 def debian_version(version):
     """A release's version (the asset name carries no epoch) as the Debian
     version its package has."""

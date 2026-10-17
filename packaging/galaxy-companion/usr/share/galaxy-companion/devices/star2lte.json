@@ -17,7 +17,8 @@
     "notification-led",
     "charge-limit",
     "bixby-key",
-    "flashlight"
+    "flashlight",
+    "-fingerprint"
   ],
   "port": {
     "name": "Galaxy S9+ mainline Linux",

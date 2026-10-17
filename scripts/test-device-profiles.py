@@ -82,6 +82,12 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(found.features, frozenset({"haptics", "notification-led", "charge-limit", "bixby-key", "flashlight"}))
         self.assertEqual(found.notification_led["led"], "rgb:status")
 
+    def test_galaxy_s9_plus_hides_its_fingerprint_reader(self):
+        # fprintd may be installed, but the port has no driver for the sensor yet.
+        data = device.match_profile(device.load_profiles(), ("samsung,star2lte",), "")
+        found = device.build(data, ("samsung,star2lte",), "", frozenset({"haptics", "fingerprint"}))
+        self.assertNotIn("fingerprint", found.features)
+
     def test_model_string_matches_when_compatible_does_not(self):
         found = self.resolve(("vendor,other",), "Samsung Galaxy S9+ (SM-G965F)")
         self.assertEqual(found.id, "star2lte")
@@ -169,7 +175,7 @@ class WindowPageTests(unittest.TestCase):
     def test_galaxy_s9_plus_pages(self):
         pages = self.pages("star2lte")
         self.assertEqual(pages, ["home", "haptics", "led", "other"])
-        for absent in ("pen", "keyboard", "dualboot", "updates"):
+        for absent in ("pen", "keyboard", "dualboot", "updates", "fingerprint"):
             self.assertNotIn(absent, pages)
 
     def test_device_with_nothing_shows_only_home(self):
