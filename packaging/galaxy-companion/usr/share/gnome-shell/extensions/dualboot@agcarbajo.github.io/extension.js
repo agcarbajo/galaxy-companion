@@ -48,9 +48,31 @@ const CATALOGUE = {
     },
 };
 
-const LANG = (GLib.getenv('LANGUAGE') || GLib.getenv('LC_ALL') ||
-    GLib.getenv('LC_MESSAGES') || GLib.getenv('LANG') || 'en')
-    .split(':')[0].split('_')[0].split('-')[0].toLowerCase();
+// The language the desktop shows, not just the locale: a system set to
+// es_ES without GNOME's Spanish translations shows English, and so does this
+// toggle. The first wanted language that gnome-shell has a catalogue for and
+// CATALOGUE knows wins (as Galaxy Companion's app decides); English otherwise.
+function desktopLanguage() {
+    const known = new Set(Object.values(CATALOGUE).flatMap(Object.keys));
+    const dirs = ['/usr/share/locale', '/usr/share/locale-langpack'];
+    // gettext ignores LANGUAGE under the C locale; GLib's list does not
+    const main = GLib.getenv('LC_ALL') || GLib.getenv('LC_MESSAGES') || GLib.getenv('LANG') || 'C';
+    if (main === 'C' || main === 'POSIX' || main.startsWith('C.'))
+        return 'en';
+    for (const name of GLib.get_language_names_with_category('LC_MESSAGES')) {
+        if (name === 'C' || name === 'POSIX' || name.startsWith('C.'))
+            break;
+        const code = name.split(/[_.@-]/)[0].toLowerCase();
+        if (code === 'en')
+            return 'en';
+        if (known.has(code) && dirs.some(dir => GLib.file_test(
+            `${dir}/${name}/LC_MESSAGES/gnome-shell.mo`, GLib.FileTest.EXISTS)))
+            return code;
+    }
+    return 'en';
+}
+
+const LANG = desktopLanguage();
 
 function _(message) {
     return CATALOGUE[message]?.[LANG] ?? message;

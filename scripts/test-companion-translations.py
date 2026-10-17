@@ -9,8 +9,10 @@ import gettext
 import importlib
 import os
 from pathlib import Path
+import shutil
 import string
 import sys
+import tempfile
 import types
 import unittest
 from unittest.mock import patch
@@ -66,10 +68,43 @@ class TranslationTests(unittest.TestCase):
                         self.assertEqual([(e.tag, e.attrib) for e in original.iter()],
                                          [(e.tag, e.attrib) for e in translated.iter()])
 
+    def desktop(self, *languages):
+        """A desktop whose GNOME Shell is translated into these languages."""
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        for language in languages:
+            os.makedirs(os.path.join(root, language, "LC_MESSAGES"))
+            open(os.path.join(root, language, "LC_MESSAGES", "gnome-shell.mo"), "wb").close()
+        return root
+
+    def language(self, environ, root):
+        keep = {key: "" for key in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG")}
+        with patch.dict(os.environ, {**keep, **environ,
+                                     "GALAXY_COMPANION_DESKTOP_LOCALE_DIRS": root}):
+            importlib.reload(i18n)
+            return i18n.desktop_language()
+
+    def test_language_follows_what_the_desktop_shows(self):
+        spanish = self.desktop("es")
+        self.assertEqual(self.language({"LANG": "es_ES.UTF-8"}, spanish), "es")
+        # es_ES without GNOME's Spanish: the desktop is English, so is this
+        self.assertEqual(self.language({"LANG": "es_ES.UTF-8"}, self.desktop()), "en")
+        # LANGUAGE's list is followed down to a language the desktop has
+        self.assertEqual(self.language({"LANG": "fr_FR.UTF-8", "LANGUAGE": "fr:es"}, spanish), "es")
+        self.assertEqual(self.language({"LANG": "es_ES.UTF-8", "LANGUAGE": "en:es"}, spanish), "en")
+        # gettext ignores LANGUAGE under the C locale
+        self.assertEqual(self.language({"LANG": "C.UTF-8", "LANGUAGE": "es"}, spanish), "en")
+        # Ubuntu's language packs name the country
+        self.assertEqual(self.language({"LC_ALL": "pt_BR.UTF-8"}, self.desktop("pt_BR")), "pt")
+        importlib.reload(i18n)
+
     def test_all_languages_reach_their_catalogue(self):
         # Keep the user's locale and any system gettext installation out of the test.
+        root = self.desktop("es", "fr", "de", "it", "pt")
         for lang in ("en", "es", "fr", "de", "it", "pt"):
-            with patch.dict(os.environ, {"LANGUAGE": lang}), patch.object(
+            with patch.dict(os.environ, {"LANGUAGE": lang, "LANG": "en_US.UTF-8",
+                                         "LC_ALL": "", "LC_MESSAGES": "",
+                                         "GALAXY_COMPANION_DESKTOP_LOCALE_DIRS": root}), patch.object(
                     gettext, "translation", return_value=gettext.NullTranslations()):
                 importlib.reload(i18n)
                 for message in set(FP) | set(UP):
