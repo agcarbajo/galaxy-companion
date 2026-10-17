@@ -198,5 +198,32 @@ class ChargeLimitTests(unittest.TestCase):
         self.assertIn("no status LED", result.stderr)
 
 
+REORDER = r"""
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+import gi
+gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1")
+from gi.repository import Adw
+Adw.init()
+from galaxy_companion import window
+page = window.CompanionWindow(None).view_stack.get_child_by_name("led")
+names = lambda: [r["condition"] for r in page.rules]
+before = names()
+page.move_to(page.rules[3]["id"], 0)   # drop "charged" on the first row
+print(json.dumps([before, names()]))
+"""
+
+
+@unittest.skipUnless(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"), "needs a display")
+class ReorderTests(unittest.TestCase):
+    def test_dropping_a_rule_on_another_takes_its_place_and_is_saved(self):
+        result = subprocess.run([sys.executable, "-c", REORDER, str(PACKAGE)], capture_output=True, text=True,
+                                env=dict(os.environ, GALAXY_COMPANION_DEVICE="star2lte"), timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        before, after = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(before, ["notification", "battery-low", "charging", "charged"])
+        self.assertEqual(after, ["charged", "notification", "battery-low", "charging"])
+
+
 if __name__ == "__main__":
     unittest.main()

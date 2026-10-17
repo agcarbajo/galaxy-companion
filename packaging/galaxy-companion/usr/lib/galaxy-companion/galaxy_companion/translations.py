@@ -4,11 +4,12 @@
 # Each tuple is (es, fr, de, it, pt). English is the source/fallback language.
 LANGUAGE_INDEX = {"es": 0, "fr": 1, "de": 2, "it": 3, "pt": 4}
 TRANSLATIONS = {
+    "Drag to change the priority": ("Arrastra para cambiar la prioridad", "Faites glisser pour changer la priorité", "Ziehen, um die Priorität zu ändern", "Trascina per cambiare la priorità", "Arraste para mudar a prioridade"),
     "A notification arrives": ("Llega una notificación", "Une notification arrive", "Eine Benachrichtigung kommt an", "Arriva una notifica", "Chega uma notificação"),
     "The battery is low": ("La batería está baja", "La batterie est faible", "Der Akku ist schwach", "La batteria è scarica", "A bateria está fraca"),
     "Charging": ("Cargando", "En charge", "Wird geladen", "In carica", "A carregar"),
     "Fully charged": ("Carga completa", "Chargée", "Vollständig geladen", "Carica completa", "Carga completa"),
-    "Music or video is playing": ("Se está reproduciendo música o vídeo", "De la musique ou une vidéo est en lecture", "Musik oder Video wird abgespielt", "È in riproduzione musica o video", "Está a tocar música ou vídeo"),
+    "Music or video is playing": ("Reproduciendo música o vídeo", "De la musique ou une vidéo est en lecture", "Musik oder Video wird abgespielt", "È in riproduzione musica o video", "Está a tocar música ou vídeo"),
     "Steady": ("Fijo", "Fixe", "Dauerhaft", "Fisso", "Fixo"),
     "Breathing": ("Respiración", "Respiration", "Atmen", "Respiro", "Respiração"),
     "Slow blink": ("Parpadeo lento", "Clignotement lent", "Langsames Blinken", "Lampeggio lento", "Piscar lento"),

@@ -3,7 +3,7 @@
 import json
 import math
 
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk
 
 from . import led_rules
 from .i18n import _
@@ -282,6 +282,10 @@ class LedPage(Adw.PreferencesPage):
         for rule in self.rules:
             row = Adw.ActionRow(title=led_rules.title(rule), subtitle=led_rules.subtitle(rule), activatable=True)
             row.add_prefix(color_dot(rule["color"]))
+            # Prefixes stack towards the edge: added last, the handle sits leftmost.
+            row.add_prefix(Gtk.Image(icon_name="list-drag-handle-symbolic", css_classes=["dim-label"],
+                                     tooltip_text=_("Drag to change the priority")))
+            self._make_draggable(row, rule)
             switch = Gtk.Switch(active=rule["enabled"], valign=Gtk.Align.CENTER)
             switch.connect("notify::active", lambda s, _p, r=rule: self._toggle(r, s.get_active()))
             row.add_suffix(switch)
@@ -293,6 +297,24 @@ class LedPage(Adw.PreferencesPage):
             row = Adw.ActionRow(title=_("No rules"), subtitle=_("The LED stays off. Add a rule with +."))
             self.rules_group.add(row)
             self.rule_rows.append(row)
+
+    def _make_draggable(self, row, rule):
+        """Drag a rule by its row and drop it on another to take its place."""
+        source = Gtk.DragSource(actions=Gdk.DragAction.MOVE)
+        source.connect("prepare", lambda *_: Gdk.ContentProvider.new_for_value(rule["id"]))
+        source.connect("drag-begin", lambda src, _drag: src.set_icon(Gtk.WidgetPaintable(widget=row), 24, 24))
+        row.add_controller(source)
+        target = Gtk.DropTarget.new(GObject.TYPE_STRING, Gdk.DragAction.MOVE)
+        target.connect("drop", lambda _t, value, _x, _y: self.move_to(value, self.index_of(rule)))
+        row.add_controller(target)
+
+    def move_to(self, rule_id, index):
+        current = self.index_of({"id": rule_id})
+        if current < 0 or index < 0 or current == index:
+            return False
+        self.rules.insert(index, self.rules.pop(current))
+        self._save()
+        return True
 
     def _save(self):
         self.settings.set_string("led-rules", led_rules.dump(self.rules))
