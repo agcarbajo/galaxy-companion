@@ -117,9 +117,14 @@ win.present()
 loop = GLib.MainLoop()
 GLib.timeout_add(1500, loop.quit)
 loop.run()
-home = win.home_page
-print(win.switcher_bar.get_visible(), win.page_menu.get_visible(), win.page_menu.get_menu_model().get_n_items(),
-      win.get_width())
+narrow = win.page_menu.get_visible()
+opened = None
+if narrow:
+    win.page_menu.set_active(True)
+    opened = win.split_view.get_show_sidebar()
+    win.page_list.emit("row-activated", win.page_rows["haptics"])
+    opened = opened and not win.split_view.get_show_sidebar() and win.view_stack.get_visible_child_name() == "haptics"
+print(win.switcher_bar.get_visible(), narrow, len(win.page_rows), win.get_width(), opened)
 """
 
 
@@ -130,7 +135,8 @@ class NarrowWindowTests(unittest.TestCase):
         result = subprocess.run([sys.executable, "-c", WINDOW, str(PACKAGE), str(width)], env=env,
                                 capture_output=True, text=True, timeout=120)
         self.assertEqual(result.returncode, 0, result.stderr[-3000:])
-        bar, menu, items, actual = result.stdout.split()[-4:]
+        bar, menu, items, actual, navigated = result.stdout.split()[-5:]
+        self.navigated = navigated == "True"
         return bar == "True", menu == "True", int(items), int(actual)
 
     def test_wide_window_keeps_the_bottom_bar(self):
@@ -138,10 +144,12 @@ class NarrowWindowTests(unittest.TestCase):
         self.assertEqual((bar, menu), (True, False))
         self.assertEqual(items, 6)
 
-    def test_narrow_window_moves_pages_to_the_menu(self):
+    def test_narrow_window_moves_pages_to_the_sidebar(self):
         bar, menu, _items, width = self.state(360)
         self.assertLess(width, 500)
         self.assertEqual((bar, menu), (False, True))
+        # The hamburger opens the sidebar; picking a page shows it and closes the sidebar.
+        self.assertTrue(self.navigated)
 
 
 if __name__ == "__main__":

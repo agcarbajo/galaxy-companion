@@ -10,9 +10,9 @@ from . import update_bundle
 from .i18n import _
 
 FORM_FACTOR_ICONS = {
-    "tablet": "galaxy-companion-tablet-symbolic",
-    "phone": "galaxy-companion-phone-symbolic",
-    "foldable": "galaxy-companion-foldable-symbolic",
+    "tablet": "galaxy-companion-tablet",
+    "phone": "galaxy-companion-phone",
+    "foldable": "galaxy-companion-foldable",
 }
 
 
@@ -39,7 +39,7 @@ class HomePage(Adw.PreferencesPage):
 
         hero = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, halign=Gtk.Align.CENTER)
         icon = Gtk.Image(icon_name=FORM_FACTOR_ICONS.get(device.form_factor, FORM_FACTOR_ICONS["phone"]),
-                         pixel_size=128, margin_bottom=18, css_classes=["accent"])
+                         pixel_size=160, margin_bottom=12)
         icon.update_property([Gtk.AccessibleProperty.LABEL], [{
             "tablet": _("Tablet"), "phone": _("Phone"), "foldable": _("Foldable"),
         }.get(device.form_factor, _("Phone"))])

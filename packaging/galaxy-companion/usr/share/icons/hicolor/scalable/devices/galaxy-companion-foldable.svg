@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="case" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#77767b"/><stop offset=".06" stop-color="#5e5c64"/><stop offset="1" stop-color="#3d3846"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#99c1f1"/><stop offset=".45" stop-color="#3584e4"/><stop offset="1" stop-color="#613583"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="shadow" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="screen"><rect x="15.5" y="21.5" width="97" height="85" rx="5"/></clipPath>
+  </defs>
+  <ellipse cx="64.0" cy="112" rx="57.2" ry="5" fill="url(#shadow)"/>
+  <rect x="114.6" y="34" width="3" height="14" rx="1.2" fill="#3d3846"/>
+  <rect x="12" y="18" width="104" height="92" rx="8" fill="url(#case)"/>
+  <rect x="12.5" y="18.5" width="103" height="91" rx="7.5" fill="none" stroke="#fff" stroke-opacity=".12"/>
+  <rect x="14.3" y="20.3" width="99.4" height="87.4" rx="6.2" fill="#1e1e1e"/>
+  <g clip-path="url(#screen)">
+    <rect x="15.5" y="21.5" width="97" height="85" fill="url(#wall)"/>
+    <path d="M10.5 74.2 C 44.599999999999994 53.8, 75.64 99.7, 117.5 68.25 V 111.5 H 10.5 Z" fill="#c061cb" fill-opacity=".45"/>
+    <path d="M10.5 89.5 C 49.449999999999996 74.2, 83.39999999999999 108.2, 117.5 84.4 V 111.5 H 10.5 Z" fill="#1a5fb4" fill-opacity=".55"/>
+    <path d="M10.5 51.25 C 54.300000000000004 34.25, 73.69999999999999 68.25, 117.5 47.0" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="1.2"/>
+    <rect x="63.2" y="0" width="1.6" height="128" fill="#000" fill-opacity=".18"/><rect x="64.8" y="0" width=".8" height="128" fill="#fff" fill-opacity=".18"/><circle cx="90" cy="27" r="1.8" fill="#000"/>
+    <path d="M15.5 21.5 H 88.25 L 15.5 85.25 Z" fill="url(#glass)"/>
+  </g>
+</svg>

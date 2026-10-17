@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="case" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#77767b"/><stop offset=".06" stop-color="#5e5c64"/><stop offset="1" stop-color="#3d3846"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#99c1f1"/><stop offset=".45" stop-color="#3584e4"/><stop offset="1" stop-color="#613583"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="shadow" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="screen"><rect x="40" y="11" width="48" height="104" rx="7.5"/></clipPath>
+  </defs>
+  <ellipse cx="64.0" cy="120" rx="29.700000000000003" ry="5" fill="url(#shadow)"/>
+  <rect x="89.6" y="34" width="3" height="16" rx="1.2" fill="#3d3846"/><rect x="89.6" y="54" width="3" height="8" rx="1.2" fill="#3d3846"/>
+  <rect x="37" y="8" width="54" height="110" rx="10" fill="url(#case)"/>
+  <rect x="37.5" y="8.5" width="53" height="109" rx="9.5" fill="none" stroke="#fff" stroke-opacity=".12"/>
+  <rect x="38.8" y="9.8" width="50.4" height="106.4" rx="8.7" fill="#1e1e1e"/>
+  <g clip-path="url(#screen)">
+    <rect x="40" y="11" width="48" height="104" fill="url(#wall)"/>
+    <path d="M35 75.48 C 54.4 50.52, 69.75999999999999 106.68, 93 68.2 V 120 H 35 Z" fill="#c061cb" fill-opacity=".45"/>
+    <path d="M35 94.2 C 56.8 75.48, 73.6 117.08, 93 87.96 V 120 H 35 Z" fill="#1a5fb4" fill-opacity=".55"/>
+    <path d="M35 47.4 C 59.2 26.6, 68.8 68.2, 93 42.2" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="1.2"/>
+    <circle cx="64" cy="16.5" r="2" fill="#000"/>
+    <path d="M40 11 H 76.0 L 40 89.0 Z" fill="url(#glass)"/>
+  </g>
+</svg>

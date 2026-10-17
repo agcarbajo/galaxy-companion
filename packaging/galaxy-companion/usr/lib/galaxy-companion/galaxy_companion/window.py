@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from . import VERSION
 from . import boot_sets
@@ -256,8 +256,9 @@ class CompanionWindow(Adw.ApplicationWindow):
         if pages.get_n_items() > 1:
             self.switcher_bar = Adw.ViewSwitcherBar(stack=self.view_stack, reveal=True)
             toolbar.add_bottom_bar(self.switcher_bar)
-            self._add_page_menu(header, pages)
-        self.set_content(toolbar)
+            self.set_content(self._page_sidebar(header, pages, toolbar))
+        else:
+            self.set_content(toolbar)
 
         # Opening straight on a page is only for photographing the UI on a
         # headless compositor, where there is no pointer to click a tab with.
@@ -269,24 +270,45 @@ class CompanionWindow(Adw.ApplicationWindow):
         if self.update_stack_page is not None:
             self.update_stack_page.set_needs_attention(update_monitor.available(update_monitor.load()))
 
-    def _add_page_menu(self, header, pages):
-        """The bottom bar's pages, in a menu at the left of the header bar.
+    def _page_sidebar(self, header, pages, content):
+        """The bottom bar's pages, in a sidebar that slides in from the left.
 
         It replaces the bar once the window is too narrow for every label to
-        fit under its icon, as a phone held upright or a tablet split in two.
+        fit under its icon, as a phone held upright or a tablet split in two:
+        a hamburger button in the header bar opens it, and so does a swipe
+        from the left edge.
         """
-        menu = Gio.Menu()
+        self.page_list = Gtk.ListBox(css_classes=["navigation-sidebar"])
+        self.page_rows = {}
         for index in range(pages.get_n_items()):
             page = pages.get_item(index)
-            menu.append(page.get_title(), f"win.page::{page.get_name()}")
-        action = Gio.SimpleAction.new_stateful(
-            "page", GLib.VariantType.new("s"), GLib.Variant("s", self.view_stack.get_visible_child_name()))
-        action.connect("change-state", self._page_chosen)
-        self.add_action(action)
-        self.view_stack.connect("notify::visible-child-name", lambda stack, _pspec: action.set_state(
-            GLib.Variant("s", stack.get_visible_child_name() or "")))
-        self.page_menu = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu,
-                                        tooltip_text=_("Pages"), visible=False)
+            box = Gtk.Box(spacing=12)
+            box.append(Gtk.Image(icon_name=page.get_icon_name()))
+            box.append(Gtk.Label(label=page.get_title(), xalign=0, hexpand=True,
+                                 ellipsize=Pango.EllipsizeMode.END))
+            row = Gtk.ListBoxRow(child=box)
+            row.page_name = page.get_name()
+            self.page_rows[page.get_name()] = row
+            self.page_list.append(row)
+        self.page_list.connect("row-activated", self._page_row_activated)
+        self.view_stack.connect("notify::visible-child-name", self._sync_page_row)
+        self._sync_page_row()
+
+        sidebar_header = Adw.HeaderBar(show_start_title_buttons=False, show_end_title_buttons=False)
+        sidebar_header.set_title_widget(Adw.WindowTitle(title="Galaxy Companion"))
+        sidebar = Adw.ToolbarView(content=Gtk.ScrolledWindow(
+            child=self.page_list, hscrollbar_policy=Gtk.PolicyType.NEVER))
+        sidebar.add_top_bar(sidebar_header)
+
+        # Always collapsed: it is an overlay or nothing.  On a wide window the
+        # bottom bar does the job and the sidebar never opens.
+        self.split_view = Adw.OverlaySplitView(sidebar=sidebar, content=content, collapsed=True,
+                                               show_sidebar=False, enable_show_gesture=False,
+                                               max_sidebar_width=300, sidebar_width_fraction=0.8)
+        self.page_menu = Gtk.ToggleButton(icon_name="open-menu-symbolic", tooltip_text=_("Pages"),
+                                          visible=False)
+        self.page_menu.bind_property("active", self.split_view, "show-sidebar",
+                                     GObject.BindingFlags.BIDIRECTIONAL | GObject.BindingFlags.SYNC_CREATE)
         header.pack_start(self.page_menu)
 
         width = sum(max(SWITCHER_ENTRY_WIDTH, 8 * len(pages.get_item(i).get_title()) + 32)
@@ -294,11 +316,19 @@ class CompanionWindow(Adw.ApplicationWindow):
         breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse(f"max-width: {width}sp"))
         breakpoint.add_setter(self.switcher_bar, "visible", False)
         breakpoint.add_setter(self.page_menu, "visible", True)
+        breakpoint.add_setter(self.split_view, "enable-show-gesture", True)
+        breakpoint.connect("unapply", lambda _bp: self.split_view.set_show_sidebar(False))
         self.add_breakpoint(breakpoint)
+        return self.split_view
 
-    def _page_chosen(self, action, value):
-        action.set_state(value)
-        self.view_stack.set_visible_child_name(value.get_string())
+    def _sync_page_row(self, *_args):
+        row = self.page_rows.get(self.view_stack.get_visible_child_name())
+        if row is not None and self.page_list.get_selected_row() is not row:
+            self.page_list.select_row(row)
+
+    def _page_row_activated(self, _list, row):
+        self.view_stack.set_visible_child_name(row.page_name)
+        self.split_view.set_show_sidebar(False)
 
     @staticmethod
     def _page():
