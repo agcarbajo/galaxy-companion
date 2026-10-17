@@ -269,6 +269,10 @@ class LedPage(Adw.PreferencesPage):
         reset_group.add(reset)
         self.add(reset_group)
 
+        # With the LED off, everything that only shapes what it shows is moot.
+        for widget in (brightness, self.rules_group, quiet, reset_group):
+            self.settings.bind("led-enabled", widget, "sensitive", Gio.SettingsBindFlags.GET)
+
         self.settings.connect("changed::led-rules", lambda *_: self._reload())
         self._reload()
 

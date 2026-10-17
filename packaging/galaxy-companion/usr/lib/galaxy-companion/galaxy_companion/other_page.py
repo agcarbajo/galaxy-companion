@@ -31,9 +31,9 @@ class OtherPage(Adw.PreferencesPage):
         self.levels = charge_limit.levels()
         self._applying = False
         self.limit_switch = Adw.SwitchRow(title=_("Limit charging"), active=state["enabled"],
-                                          subtitle=_("Stop charging at the level below"))
+                                          subtitle=_("Stop charging before the battery is full"))
         self.limit_level = Adw.ComboRow(title=_("Charge up to"), model=Gtk.StringList.new(
-            [f"{level} %" for level in self.levels]), sensitive=state["enabled"])
+            [f"{level} %" for level in self.levels]), visible=state["enabled"])
         self.limit_level.set_selected(self.levels.index(state["limit"]))
         level = charge_limit.battery_level()
         if level is not None:
@@ -49,7 +49,8 @@ class OtherPage(Adw.PreferencesPage):
             return
         enabled = self.limit_switch.get_active()
         limit = self.levels[self.limit_level.get_selected()]
-        self.limit_level.set_sensitive(enabled)
+        # The level only matters while limiting is on.
+        self.limit_level.set_visible(enabled)
         try:
             process = Gio.Subprocess.new(["pkexec", CHARGE_HELPER, "set", "on" if enabled else "off", str(limit)],
                                          Gio.SubprocessFlags.STDERR_SILENCE)
@@ -70,6 +71,6 @@ class OtherPage(Adw.PreferencesPage):
         self._applying = True
         self.limit_switch.set_active(state["enabled"])
         self.limit_level.set_selected(self.levels.index(state["limit"]))
-        self.limit_level.set_sensitive(state["enabled"])
+        self.limit_level.set_visible(state["enabled"])
         self.limit_level.set_subtitle(_("Couldn't change the charge limit"))
         self._applying = False

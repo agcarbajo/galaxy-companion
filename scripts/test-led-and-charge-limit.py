@@ -210,7 +210,10 @@ page = window.CompanionWindow(None).view_stack.get_child_by_name("led")
 names = lambda: [r["condition"] for r in page.rules]
 before = names()
 page.move_to(page.rules[3]["id"], 0)   # drop "charged" on the first row
-print(json.dumps([before, names()]))
+page.settings.set_boolean("led-enabled", False)
+off = page.rules_group.get_sensitive()
+page.settings.set_boolean("led-enabled", True)
+print(json.dumps([before, names(), off, page.rules_group.get_sensitive()]))
 """
 
 
@@ -220,7 +223,8 @@ class ReorderTests(unittest.TestCase):
         result = subprocess.run([sys.executable, "-c", REORDER, str(PACKAGE)], capture_output=True, text=True,
                                 env=dict(os.environ, GALAXY_COMPANION_DEVICE="star2lte"), timeout=120)
         self.assertEqual(result.returncode, 0, result.stderr[-2000:])
-        before, after = json.loads(result.stdout.strip().splitlines()[-1])
+        before, after, off, on = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual((off, on), (False, True), "rules follow the LED switch")
         self.assertEqual(before, ["notification", "battery-low", "charging", "charged"])
         self.assertEqual(after, ["charged", "notification", "battery-low", "charging"])
 
