@@ -35,14 +35,20 @@ function _(message) {
 }
 
 // The torch's sysfs directory, or null when the device has none.
+// GJS always collects stderr, so no STDERR_TO_DEV_NULL here: with it
+// g_spawn_sync() refuses to run and the tile silently went missing.
 function ledDirectory() {
     try {
-        const [ok, out, , status] = GLib.spawn_sync(null, [HELPER, 'path'], null,
-            GLib.SpawnFlags.STDERR_TO_DEV_NULL, null);
-        if (!ok || status !== 0)
+        const [ok, out, err, status] = GLib.spawn_sync(null, [HELPER, 'path'], null,
+            GLib.SpawnFlags.DEFAULT, null);
+        if (!ok || status !== 0) {
+            const reason = err ? new TextDecoder().decode(err).trim() : '';
+            console.log(`Flashlight: no toggle: ${reason || `${HELPER} failed`}`);
             return null;
+        }
         return new TextDecoder().decode(out).trim() || null;
     } catch (error) {
+        console.log(`Flashlight: no toggle: ${error.message}`);
         return null;
     }
 }
