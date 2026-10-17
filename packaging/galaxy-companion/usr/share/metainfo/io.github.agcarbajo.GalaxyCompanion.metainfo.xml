@@ -20,6 +20,9 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
+    <release version="2.4.0" date="2026-10-17">
+      <description><p>A status LED rule can light while the battery is within any range, such as 0 to 15 % or 50 to 80 %, with or without the charger. Closing a rule ends its try on the LED at once, and a stuck LED driver no longer keeps the LED frozen. The Advanced section explains what NAME is in the signal command.</p></description>
+    </release>
     <release version="2.3.0" date="2026-10-17">
       <description><p>Dual boot works on any device whose profile lists its boot partitions, from one partition to several. Linux saves its own boot partitions at every start, and the new Dualboot Android app saves Android's, so nothing is set up by hand; the app updates itself from these releases. The Bixby button can be mapped like the S Pen button.</p></description>
     </release>

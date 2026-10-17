@@ -20,6 +20,7 @@ HELPER = "/usr/libexec/galaxy-companion-led"
 POWER_SUPPLY = Path("/sys/class/power_supply")
 TICK_SECONDS = 5
 PREVIEW_SECONDS = 5
+HELPER_TIMEOUT = 15  # seconds before a helper that never answers counts as failed
 
 
 def _read(path):
@@ -232,9 +233,14 @@ class LedEngine:
         return True
 
     def show_preview(self, rule):
-        self.preview = led_rules.clean(rule)
+        """Shows `rule` for PREVIEW_SECONDS; None ends the preview now."""
+        self.preview = led_rules.clean(rule) if rule is not None else None
         if self.preview_timer is not None:
             GLib.source_remove(self.preview_timer)
+            self.preview_timer = None
+        if self.preview is None:
+            self.evaluate()
+            return
 
         def done():
             self.preview, self.preview_timer = None, None
@@ -262,13 +268,36 @@ class LedEngine:
         if queued is not None and queued != self.shown:
             self._apply(queued)
 
+    @staticmethod
+    def argv(wanted):
+        return ["pkexec", HELPER, *wanted]
+
     def _spawn(self, wanted, done):
         try:
-            process = Gio.Subprocess.new(["pkexec", HELPER, *wanted], Gio.SubprocessFlags.STDERR_SILENCE)
+            process = Gio.Subprocess.new(self.argv(wanted), Gio.SubprocessFlags.STDERR_SILENCE)
         except GLib.Error:
             done(wanted, False)
             return
-        process.wait_check_async(None, lambda proc, result: done(wanted, self._finished(proc, result)))
+        state = {"answered": False}
+
+        def finish(ok):
+            if not state["answered"]:
+                state["answered"] = True
+                done(wanted, ok)
+
+        def exited(proc, result):
+            if not state["answered"]:
+                GLib.source_remove(state["timeout"])
+            finish(self._finished(proc, result))
+
+        def timed_out():
+            # A helper stuck in the kernel (a broken LED driver) must not
+            # keep every later change waiting behind it.
+            process.force_exit()
+            finish(False)
+            return False
+        state["timeout"] = GLib.timeout_add_seconds(HELPER_TIMEOUT, timed_out)
+        process.wait_check_async(None, exited)
 
     @staticmethod
     def _finished(process, result):

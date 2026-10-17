@@ -182,7 +182,8 @@ blink without it). Turning the rules off restores `default_trigger`.
 With "Custom conditions" on (LED page → Advanced), two more situations exist:
 
 - **A custom signal is on**: `galaxy-companion --led-signal NAME on|off` from
-  any script (D-Bus `SetLedSignal` on the session backend). Signals live until
+  any script (D-Bus `SetLedSignal` on the session backend). NAME is the signal
+  name written in the rule (letters, digits, `-` and `_`). Signals live until
   logout.
 - **A command succeeds**: the backend runs it with `sh -c` as the user every
   30-3600 s (10 s timeout); the rule holds while the last run exited 0.

@@ -34,11 +34,41 @@ class RuleTests(unittest.TestCase):
         self.assertIsNone(choose())
         self.assertEqual(choose(battery_status="Charging"), "charging")
         self.assertEqual(choose(battery_status="Full", plugged=True, battery=100), "charged")
-        self.assertEqual(choose(battery=10), "battery-low")
+        self.assertEqual(choose(battery=10), "battery")
         # A waiting notification outranks everything below it.
         self.assertEqual(choose(battery=10, notifications=[{"org.telegram.desktop"}]), "notification")
         # Charging is not "low", even at 10 %.
         self.assertEqual(choose(battery=10, battery_status="Charging"), "charging")
+
+    def test_battery_ranges_and_charger(self):
+        def holds(rule, **values):
+            return led_rules.matches(led_rules.clean(dict(rule, condition="battery")), status(**values))
+        middle = {"battery_min": 50, "battery_max": 80}
+        self.assertTrue(holds(middle, battery=50))
+        self.assertTrue(holds(middle, battery=80), "both ends count")
+        self.assertFalse(holds(middle, battery=81))
+        self.assertTrue(holds(middle, battery=60, battery_status="Charging"), "the charger does not matter")
+        self.assertTrue(holds({"battery_min": 0, "battery_max": 100}, battery=0))
+        self.assertFalse(holds({"battery_min": 0, "battery_max": 100}, battery=None))
+        plugged = dict(middle, power="plugged")
+        self.assertFalse(holds(plugged, battery=60))
+        self.assertTrue(holds(plugged, battery=60, plugged=True))
+        self.assertTrue(holds(plugged, battery=60, battery_status="Charging"))
+        unplugged = dict(middle, power="unplugged")
+        self.assertTrue(holds(unplugged, battery=60))
+        self.assertFalse(holds(unplugged, battery=60, battery_status="Charging"))
+
+    def test_battery_ranges_are_cleaned(self):
+        rule = led_rules.clean({"condition": "battery", "battery_min": 90, "battery_max": 20, "power": "x"})
+        self.assertEqual((rule["battery_min"], rule["battery_max"], rule["power"]), (20, 90, "any"))
+        rule = led_rules.clean({"condition": "battery", "battery_min": -5, "battery_max": 500})
+        self.assertEqual((rule["battery_min"], rule["battery_max"]), (0, 100))
+
+    def test_old_low_battery_rules_become_ranges(self):
+        rule = led_rules.clean({"condition": "battery-low", "threshold": 20, "color": "#e01b24"})
+        self.assertEqual((rule["condition"], rule["battery_min"], rule["battery_max"], rule["power"]),
+                         ("battery", 0, 20, "unplugged"))
+        self.assertNotIn("threshold", rule)
 
     def test_app_rules_match_desktop_id_or_name(self):
         rule = led_rules.new_rule("notification", app="org.telegram.desktop", app_name="Telegram")
@@ -51,12 +81,12 @@ class RuleTests(unittest.TestCase):
         self.assertFalse(led_rules.matches(rule, status(battery_status="Charging")))
 
     def test_bad_stored_rules_are_cleaned_or_dropped(self):
-        stored = json.dumps([{"condition": "charging", "color": "red", "effect": "disco", "threshold": 500},
+        stored = json.dumps([{"condition": "charging", "color": "red", "effect": "disco", "battery_max": 500},
                              {"condition": "rm -rf"}, "junk"])
         rules = led_rules.load(stored)
         self.assertEqual(len(rules), 1)
-        self.assertEqual((rules[0]["color"], rules[0]["effect"], rules[0]["threshold"]),
-                         ("#3584e4", "breathe", 95))
+        self.assertEqual((rules[0]["color"], rules[0]["effect"], rules[0]["battery_max"]),
+                         ("#3584e4", "breathe", 100))
         self.assertEqual(len(led_rules.load("")), 4)
 
     def test_quiet_hours_cross_midnight(self):
@@ -68,7 +98,10 @@ class RuleTests(unittest.TestCase):
         self.assertFalse(led_rules.in_quiet_hours(5, 5, 5))
 
     def test_titles(self):
-        self.assertEqual(led_rules.title(led_rules.new_rule("battery-low", threshold=20)), "Battery below 20 %")
+        battery = led_rules.new_rule("battery", battery_min=50, battery_max=80, power="plugged",
+                                     color="#33d17a", effect="solid")
+        self.assertEqual(led_rules.title(battery), "Battery between 50 and 80 %")
+        self.assertEqual(led_rules.subtitle(battery), "Steady · Green · Plugged in")
         self.assertEqual(led_rules.title(led_rules.new_rule("notification", app="x", app_name="Signal")),
                          "Notification from Signal")
         self.assertEqual(led_rules.subtitle(led_rules.new_rule("charging", color="#ff7800", effect="solid")),
@@ -150,6 +183,23 @@ class EngineTests(unittest.TestCase):
         engine, calls = self.engine()
         engine.show_preview(led_rules.new_rule("media", color="#9141ac", effect="blink-fast"))
         self.assertEqual(calls[-1], ("show", "blink-fast", "#9141ac", "60"))
+        engine.show_preview(None)
+        self.assertEqual(calls[-1], ("off",), "closing the rule ends the try at once")
+        self.assertIsNone(engine.preview_timer)
+
+    def test_a_helper_that_never_answers_does_not_block_the_led(self):
+        engine, _calls = self.engine()
+        # sleep stands in for a helper stuck in the kernel by a broken driver.
+        engine.argv = lambda wanted: ["sleep", "30"]
+        answers = []
+        with patch.object(led_engine, "HELPER_TIMEOUT", 1):
+            engine._spawn(("off",), lambda wanted, ok: answers.append((wanted, ok)))
+            context = led_engine.GLib.MainContext.default()
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and not answers:
+                context.iteration(False)
+                time.sleep(0.01)
+        self.assertEqual(answers, [(("off",), False)])
 
     def test_signals_need_the_advanced_switch(self):
         rules = json.dumps([led_rules.clean({"condition": "signal", "signal": "backup", "color": "#33d17a",
@@ -333,8 +383,47 @@ class ReorderTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr[-2000:])
         before, after, off, on = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertEqual((off, on), (False, True), "rules follow the LED switch")
-        self.assertEqual(before, ["notification", "battery-low", "charging", "charged"])
-        self.assertEqual(after, ["charged", "notification", "battery-low", "charging"])
+        self.assertEqual(before, ["notification", "battery", "charging", "charged"])
+        self.assertEqual(after, ["charged", "notification", "battery", "charging"])
+
+
+DIALOG = r"""
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import gi
+gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1")
+from gi.repository import Adw
+Adw.init()
+from galaxy_companion import led_page, window
+win = window.CompanionWindow(None)
+page = win.view_stack.get_child_by_name("led")
+previews = []
+page.preview = previews.append
+rule = next(r for r in page.rules if r["condition"] == "battery")
+dialog = led_page.RuleDialog(page, dict(rule))
+shown = [row.get_visible() for row in (dialog.battery_min, dialog.battery_max, dialog.power, dialog.app)]
+dialog.battery_max.set_value(60)
+dialog.battery_min.set_value(80)     # past the top: the top follows
+dialog.power.set_selected(2)
+saved = next(r for r in page.rules if r["id"] == rule["id"])
+dialog._try(None)
+dialog.emit("closed")
+print(json.dumps([shown, [saved["battery_min"], saved["battery_max"], saved["power"]],
+                  [p if p is None else p["id"] for p in previews]]))
+"""
+
+
+@unittest.skipUnless(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"), "needs a display")
+class RuleDialogTests(unittest.TestCase):
+    def test_battery_range_rows_and_closing_ends_the_try(self):
+        result = subprocess.run([sys.executable, "-c", DIALOG, str(PACKAGE)], capture_output=True, text=True,
+                                env=dict(os.environ, GALAXY_COMPANION_DEVICE="star2lte"), timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        shown, saved, previews = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(shown, [True, True, True, False], "range and charger rows, no app row")
+        self.assertEqual(saved, [80, 80, "plugged"])
+        self.assertEqual(len(previews), 2)
+        self.assertIsNone(previews[1], "closing the dialog ends the try")
 
 
 if __name__ == "__main__":

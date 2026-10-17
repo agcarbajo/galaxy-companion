@@ -5,7 +5,8 @@ A rule is a plain dict, stored as a JSON list in the `led-rules` setting:
 
     {"id": "a1b2", "enabled": true, "condition": "notification",
      "app": "org.telegram.desktop", "app_name": "Telegram",
-     "threshold": 15, "color": "#3584e4", "effect": "breathe"}
+     "battery_min": 0, "battery_max": 15, "power": "unplugged",
+     "color": "#3584e4", "effect": "breathe"}
 
 The rules are read top to bottom and the first one that holds decides the
 LED, so order is priority.  Plain Python: the window edits rules, the session
@@ -19,12 +20,18 @@ from .i18n import N_, _
 
 CONDITIONS = (
     ("notification", N_("A notification arrives")),
-    ("battery-low", N_("The battery is low")),
+    ("battery", N_("The battery level is in a range")),
     ("charging", N_("Charging")),
     ("charged", N_("Fully charged")),
     ("media", N_("Music or video is playing")),
     ("signal", N_("A custom signal is on")),
     ("command", N_("A command succeeds")),
+)
+# Whether the charger matters to a battery rule.
+POWER = (
+    ("any", N_("Either way")),
+    ("unplugged", N_("Unplugged")),
+    ("plugged", N_("Plugged in")),
 )
 # Offered only with "Custom conditions" on, and ignored while it is off.
 ADVANCED = frozenset({"signal", "command"})
@@ -57,7 +64,7 @@ COLOR = re.compile(r"#[0-9a-fA-F]{6}\Z")
 
 def new_rule(condition="notification", **values):
     rule = {"id": uuid.uuid4().hex[:8], "enabled": True, "condition": condition,
-            "app": "", "app_name": "", "threshold": 15, "color": "#3584e4", "effect": "breathe",
+            "app": "", "app_name": "", "battery_min": 0, "battery_max": 15, "power": "any", "color": "#3584e4", "effect": "breathe",
             "signal": "", "command": "", "interval": 60}
     rule.update(values)
     return rule
@@ -67,7 +74,7 @@ def defaults():
     """What the LED did before anyone touched it, plus notifications."""
     return [
         new_rule("notification", color="#3584e4", effect="breathe"),
-        new_rule("battery-low", threshold=15, color="#e01b24", effect="blink-slow"),
+        new_rule("battery", battery_min=0, battery_max=15, power="unplugged", color="#e01b24", effect="blink-slow"),
         new_rule("charging", color="#ff7800", effect="solid"),
         new_rule("charged", color="#33d17a", effect="solid"),
     ]
@@ -75,6 +82,10 @@ def defaults():
 
 def clean(rule):
     """A rule with every field valid, or None to drop it."""
+    if isinstance(rule, dict) and rule.get("condition") == "battery-low":
+        # Before 2.4: "below a threshold, not charging".
+        rule = dict(rule, condition="battery", battery_min=0, battery_max=rule.get("threshold", 15),
+                    power="unplugged")
     if not isinstance(rule, dict) or rule.get("condition") not in dict(CONDITIONS):
         return None
     out = new_rule(rule["condition"])
@@ -83,9 +94,12 @@ def clean(rule):
     out["app"] = str(rule.get("app") or "")[:200]
     out["app_name"] = str(rule.get("app_name") or "")[:200]
     try:
-        out["threshold"] = min(95, max(5, int(rule.get("threshold", 15))))
+        low, high = (min(100, max(0, int(rule.get(key, out[key])))) for key in ("battery_min", "battery_max"))
+        out["battery_min"], out["battery_max"] = min(low, high), max(low, high)
     except (TypeError, ValueError):
         pass
+    if rule.get("power") in dict(POWER):
+        out["power"] = rule["power"]
     if SIGNAL.match(str(rule.get("signal") or "")):
         out["signal"] = rule["signal"]
     out["command"] = str(rule.get("command") or "")[:500]
@@ -129,8 +143,8 @@ def title(rule):
         if rule.get("app_name"):
             return _("Notification from {app}").format(app=rule["app_name"])
         return _("Any notification")
-    if condition == "battery-low":
-        return _("Battery below {percent} %").format(percent=rule["threshold"])
+    if condition == "battery":
+        return _("Battery between {low} and {high} %").format(low=rule["battery_min"], high=rule["battery_max"])
     if condition == "signal":
         return _("Signal “{name}”").format(name=rule["signal"] or "…")
     if condition == "command":
@@ -140,7 +154,10 @@ def title(rule):
 
 
 def subtitle(rule):
-    return f"{_(dict(EFFECTS)[rule['effect']])} · {color_name(rule['color'])}"
+    parts = [_(dict(EFFECTS)[rule["effect"]]), color_name(rule["color"])]
+    if rule["condition"] == "battery" and rule["power"] != "any":
+        parts.append(_(dict(POWER)[rule["power"]]))
+    return " · ".join(parts)
 
 
 def _variants(name):
@@ -171,8 +188,11 @@ def matches(rule, status):
         if not rule.get("app"):
             return bool(pending)
         return any(_app_matches(rule, sources) for sources in pending)
-    if condition == "battery-low":
-        return level is not None and level <= rule["threshold"] and state != "Charging"
+    if condition == "battery":
+        if level is None or not rule["battery_min"] <= level <= rule["battery_max"]:
+            return False
+        plugged = bool(status.get("plugged")) or state in ("Charging", "Full")
+        return {"any": True, "unplugged": not plugged, "plugged": plugged}[rule["power"]]
     if condition == "charging":
         return state == "Charging"
     if condition == "charged":

@@ -1767,13 +1767,16 @@ class HardwareService:
             accepted = self.led is not None and self.led.set_signal(name, on)
             invocation.return_value(GLib.Variant("(b)", (accepted,)))
         elif method == "PreviewLed":
+            text = params.unpack()[0]
             try:
-                rule = led_rules.clean(json.loads(params.unpack()[0] or "null"))
+                rule = led_rules.clean(json.loads(text)) if text else None
             except ValueError:
                 rule = None
-            if self.led is not None and rule is not None:
+            # An empty rule ends the preview.
+            accepted = self.led is not None and (rule is not None or not text)
+            if accepted:
                 self.led.show_preview(rule)
-            invocation.return_value(GLib.Variant("(b)", (self.led is not None and rule is not None,)))
+            invocation.return_value(GLib.Variant("(b)", (accepted,)))
         elif method == "Vibrate":
             duration_ms, magnitude = params.unpack()
             # Version 1 of the live Shell extension may remain cached until

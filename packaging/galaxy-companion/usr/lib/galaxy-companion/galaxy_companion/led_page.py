@@ -108,11 +108,20 @@ class RuleDialog(Adw.Dialog):
         self.app.connect("notify::selected", self._app_changed)
         when.add(self.app)
 
-        self.threshold = Adw.SpinRow(title=_("Below"), subtitle=_("Battery level, in percent"),
-                                     adjustment=Gtk.Adjustment(lower=5, upper=95, step_increment=5,
-                                                               value=rule["threshold"]))
-        self.threshold.connect("notify::value", self._threshold_changed)
-        when.add(self.threshold)
+        self.battery_min = Adw.SpinRow(title=_("At least"), subtitle=_("Battery level, in percent"),
+                                       adjustment=Gtk.Adjustment(lower=0, upper=100, step_increment=5,
+                                                                 value=rule["battery_min"]))
+        self.battery_max = Adw.SpinRow(title=_("At most"), subtitle=_("Battery level, in percent"),
+                                       adjustment=Gtk.Adjustment(lower=0, upper=100, step_increment=5,
+                                                                 value=rule["battery_max"]))
+        for row in (self.battery_min, self.battery_max):
+            row.connect("notify::value", self._battery_changed)
+            when.add(row)
+        self.power = Adw.ComboRow(title=_("Charger"), model=Gtk.StringList.new(
+            [_(label) for _key, label in led_rules.POWER]))
+        self.power.set_selected([key for key, _label in led_rules.POWER].index(rule["power"]))
+        self.power.connect("notify::selected", self._power_changed)
+        when.add(self.power)
         content.add(when)
 
         how = Adw.PreferencesGroup(title=_("How"))
@@ -145,7 +154,7 @@ class RuleDialog(Adw.Dialog):
 
         test = Adw.ActionRow(title=_("Try it on the LED"), subtitle=_("Shows this rule for five seconds"))
         test_button = Gtk.Button(label=_("Try"), valign=Gtk.Align.CENTER)
-        test_button.connect("clicked", lambda _b: page.preview(self.rule))
+        test_button.connect("clicked", self._try)
         test.add_suffix(test_button)
         how.add(test)
         content.add(how)
@@ -166,12 +175,24 @@ class RuleDialog(Adw.Dialog):
         order.add(delete)
         content.add(order)
 
+        self.previewing = False
+        self.connect("closed", self._closed)
         self._sync()
+
+    def _try(self, _button):
+        self.previewing = True
+        self.page.preview(self.rule)
+
+    def _closed(self, _dialog):
+        # Leaving the dialog ends a try at once, not when its time is up.
+        if self.previewing:
+            self.page.preview(None)
 
     def _sync(self):
         condition = self.rule["condition"]
         self.app.set_visible(condition == "notification")
-        self.threshold.set_visible(condition == "battery-low")
+        for row in (self.battery_min, self.battery_max, self.power):
+            row.set_visible(condition == "battery")
         self.signal.set_visible(condition == "signal")
         self.command.set_visible(condition == "command")
         self.interval.set_visible(condition == "command")
@@ -224,8 +245,17 @@ class RuleDialog(Adw.Dialog):
         self.rule["interval"] = int(row.get_value())
         self._changed()
 
-    def _threshold_changed(self, row, _pspec):
-        self.rule["threshold"] = int(row.get_value())
+    def _battery_changed(self, row, _pspec):
+        low, high = int(self.battery_min.get_value()), int(self.battery_max.get_value())
+        # The other end follows, so the range never turns inside out.
+        if low > high:
+            (self.battery_max if row is self.battery_min else self.battery_min).set_value(row.get_value())
+            return
+        self.rule["battery_min"], self.rule["battery_max"] = low, high
+        self._changed()
+
+    def _power_changed(self, row, _pspec):
+        self.rule["power"] = led_rules.POWER[row.get_selected()][0]
         self._changed()
 
     def _set_color(self, color):
@@ -320,11 +350,16 @@ class LedPage(Adw.PreferencesPage):
         copy.connect("clicked", lambda _b: self.get_clipboard().set("galaxy-companion --led-signal NAME on"))
         usage.add_suffix(copy)
         advanced.add(usage)
+        name = Adw.ActionRow(title=_("What NAME is"), subtitle=_(
+            "The name of the signal, as written in a rule with “A custom signal is on”: letters, digits, - and _. "
+            "For example, galaxy-companion --led-signal backup on lights the rules waiting for the signal "
+            "“backup”, and off turns them off again."))
+        advanced.add(name)
         commands = Adw.ActionRow(title=_("Commands"), subtitle=_(
             "Run with sh as you, at most every 30 seconds; a command that takes longer than "
             "10 seconds counts as failed. The rule holds while the last run succeeded."))
         advanced.add(commands)
-        for row in (usage, commands):
+        for row in (usage, name, commands):
             self.settings.bind("led-advanced", row, "visible", Gio.SettingsBindFlags.GET)
         self.add(advanced)
 
@@ -426,9 +461,11 @@ class LedPage(Adw.PreferencesPage):
         self.settings.reset("led-rules")
 
     def preview(self, rule):
+        """Shows `rule` on the LED for a few seconds; None ends a try."""
         try:
             Gio.bus_get_sync(Gio.BusType.SESSION, None).call(
-                BUS_NAME, OBJECT_PATH, BUS_NAME, "PreviewLed", GLib.Variant("(s)", (json.dumps(rule),)),
+                BUS_NAME, OBJECT_PATH, BUS_NAME, "PreviewLed",
+                GLib.Variant("(s)", (json.dumps(rule) if rule is not None else "",)),
                 None, Gio.DBusCallFlags.NONE, 5000, None, None)
         except GLib.Error:
             pass
