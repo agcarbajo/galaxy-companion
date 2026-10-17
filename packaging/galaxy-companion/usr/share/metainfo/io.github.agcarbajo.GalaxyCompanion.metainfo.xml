@@ -20,6 +20,9 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
+    <release version="2.1.0" date="2026-10-17">
+      <description><p>A home page shows the device, its processor and memory. Galaxy Companion can update itself from its own releases, without a port update. On narrow windows the pages move to a menu in the header bar.</p></description>
+    </release>
     <release version="2.0.0" date="2026-10-17">
       <description><p>Tab Companion becomes Galaxy Companion: device profiles select the pages and hardware for each Samsung device, so the same application runs on the Galaxy Tab S9 Ultra, the Galaxy S9+ and devices without a profile. Settings carry over from Tab Companion.</p></description>
     </release>

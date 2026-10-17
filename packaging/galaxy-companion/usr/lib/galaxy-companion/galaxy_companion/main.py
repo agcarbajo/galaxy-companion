@@ -10,7 +10,7 @@ from gi.repository import Adw, Gio, GLib
 
 from . import APP_ID, VERSION
 from .window import CompanionWindow
-from . import update_bundle, update_monitor
+from . import app_update, update_bundle, update_monitor
 from .i18n import _
 
 
@@ -19,6 +19,9 @@ class CompanionApplication(Adw.Application):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.connect("activate", self._activate)
         self.connect("command-line", self._command_line)
+        home = Gio.SimpleAction.new("open-home", None)
+        home.connect("activate", self._open_home)
+        self.add_action(home)
         action = Gio.SimpleAction.new("open-updates", None)
         action.connect("activate", self._open_updates)
         self.add_action(action)
@@ -43,8 +46,14 @@ class CompanionApplication(Adw.Application):
         if window.update_page is not None:
             window.view_stack.set_visible_child_name("updates")
 
+    def _open_home(self, *_args):
+        self.activate()
+        self.props.active_window.view_stack.set_visible_child_name("home")
+
     def _weekly_check(self):
         settings = Gio.Settings.new(APP_ID)
+        if settings.get_boolean("weekly-update-checks") and app_update.due():
+            self._weekly_app_check()
         if (self._checking_updates or not update_bundle.supported() or not settings.get_boolean("weekly-update-checks")
                 or not update_monitor.due(update_monitor.load())):
             return
@@ -79,6 +88,34 @@ class CompanionApplication(Adw.Application):
                         window.update_page._checked(info, None)
         finally:
             self._checking_updates = False
+            self.release()
+        return False
+
+    def _weekly_app_check(self):
+        """Galaxy Companion's own releases, on every device, port or not."""
+        self.hold()
+        def worker():
+            try:
+                result = app_update.check()
+            except Exception:
+                result = None  # offline: try again next time, quietly
+            GLib.idle_add(self._weekly_app_result, result)
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _weekly_app_result(self, result):
+        try:
+            if result:
+                info, available = result
+                if app_update.record(info, available):
+                    notification = Gio.Notification.new(_("Galaxy Companion update available"))
+                    notification.set_body(_("Version {version} is available.").format(version=info["version"]))
+                    notification.set_icon(Gio.ThemedIcon.new("software-update-available-symbolic"))
+                    notification.set_default_action("app.open-home")
+                    self.send_notification("app-update", notification)
+                window = self.props.active_window
+                if window is not None:
+                    window.home_page.checked(info, available)
+        finally:
             self.release()
         return False
 

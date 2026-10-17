@@ -1,5 +1,5 @@
 Package: galaxy-companion
-Version: 2.0.0
+Version: 2.1.0
 Section: utils
 Priority: optional
 Architecture: all
@@ -13,6 +13,7 @@ Description: GNOME companion for Samsung Galaxy devices on mainline Linux
  Galaxy Companion is the native GNOME settings application for Samsung Galaxy
  phones and tablets running a mainline kernel: S Pen status, remote modes and
  air actions, keyboard cover special keys, haptics, fingerprint enrollment,
- dual boot and system updates. Each page appears only when the device has the
+ dual boot and system updates. It updates itself from its own releases,
+ independently of the device's port. Each page appears only when the device has the
  hardware behind it. It replaces Tab Companion from the Galaxy Tab S9 Ultra
  port and keeps its settings.

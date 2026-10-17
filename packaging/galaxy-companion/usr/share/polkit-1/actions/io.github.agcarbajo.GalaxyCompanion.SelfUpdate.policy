@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!--
+    Installing a new version of Galaxy Companion itself.  The helper only
+    accepts a newer galaxy-companion package whose hash the app checked.
+-->
+<policyconfig>
+  <vendor>Galaxy Companion</vendor>
+  <vendor_url>https://github.com/agcarbajo/galaxy-companion</vendor_url>
+
+  <action id="io.github.agcarbajo.GalaxyCompanion.self-update">
+    <description>Update Galaxy Companion</description>
+    <description xml:lang="es">Actualizar Galaxy Companion</description>
+    <message>Authentication is required to update Galaxy Companion</message>
+    <message xml:lang="es">Se necesita autenticación para actualizar Galaxy Companion</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/galaxy-companion-self-update</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+</policyconfig>

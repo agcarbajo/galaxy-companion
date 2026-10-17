@@ -3,23 +3,16 @@
 Native GNOME settings application for Samsung Galaxy phones and tablets running a
 mainline Linux kernel, with Ubuntu and GNOME as the first target.
 
-It started as **Tab Companion**, the companion app of the
-[Galaxy Tab S9 Ultra Ubuntu port](https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra),
-and was extracted here with its full history. Every Tab Companion feature is kept;
-what was written for one tablet now comes from a **device profile**, so the same
-application runs on other Samsung devices and shows only the pages their hardware
-supports.
+It shows a page for each piece of hardware the device has (S Pen, keyboard cover,
+vibration motor, fingerprint reader, dual boot, system updates) and a home page
+with the device name, model, processor and memory.
 
-| Page | Needs | Galaxy Tab S9 Ultra | Galaxy S9+ | Device without a profile |
-|---|---|:-:|:-:|:-:|
-| S Pen: hover rejection, silo, air actions, pointer mode | `spen` + `spen-dock` / `spen-remote` | ✓ | | |
-| Keyboard cover special keys and diagnostics | `keyboard-cover` | ✓ | | |
-| Vibration: on-screen keyboard and notifications | `haptics` | ✓ | ✓ | if a known motor is found |
-| Fingerprints (fprintd) | `fingerprint` | ✓ | | if fprintd is installed |
-| Dual boot with Android | `dual-boot` | ✓ | | |
-| Port updates | `updates` | ✓ | | |
+## Compatible devices
 
-A device where nothing is found gets a single page that says so, instead of empty tabs.
+- Galaxy Tab S9 Ultra (SM-X910)
+- Galaxy S9+ (SM-G965F)
+
+Other devices run with the features that can be detected without a profile.
 
 ## Device profiles
 
@@ -66,20 +59,26 @@ GALAXY_COMPANION_DEVICE=star2lte galaxy-companion   # force one profile
 
 About → Troubleshooting shows which profile was used and the resulting features.
 
+## Updates
+
+Galaxy Companion updates itself from this repository's releases, separately
+from the device's port: the home page checks for a newer
+`galaxy-companion_<version>_all.deb`, verifies it against the release's
+`SHA256SUMS` and installs it through polkit (`galaxy-companion-self-update`).
+With weekly checks on, it also sends a notification. `scripts/publish-release.sh`
+runs the tests, builds the package and publishes both files.
+
 ## Repository layout
 
 - `packaging/galaxy-companion/`: the Debian package tree (app, backend, services, profiles)
 - `scripts/build-companion-package.sh`: builds `galaxy-companion_<version>_all.deb`
 - `scripts/test-*.py`: tests; `ci/run-tests.sh` runs all of them plus the package
   build in an Ubuntu 24.04 container (GTK 4, libadwaita, headless) from any host with Docker
-- `docs/`: design notes, profiles, and the migration from Tab Companion
-
-## Coming from Tab Companion
-
-`galaxy-companion` replaces `ubuntu-gts9u-companion` (Provides/Replaces/Breaks) and
-keeps its settings. What the Tab S9 Ultra port has to change to ship it is listed
-in [docs/migrating-from-tab-companion.md](docs/migrating-from-tab-companion.md).
+- `docs/`: design notes and device profiles
 
 ## License
 
 MIT.
+
+Galaxy Companion began as Tab Companion, part of the
+[Ubuntu port for the Galaxy Tab S9 Ultra](https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra).

@@ -7,8 +7,9 @@ import sys
 if not Gio.Settings.new("io.github.agcarbajo.GalaxyCompanion").get_boolean("weekly-update-checks"):
     raise SystemExit(0)
 sys.path.insert(0, "/usr/lib/galaxy-companion")
-from galaxy_companion import update_monitor
-if not update_monitor.due(update_monitor.load()):
+from galaxy_companion import app_update, update_bundle, update_monitor
+port_due = update_bundle.supported() and update_monitor.due(update_monitor.load())
+if not port_due and not app_update.due():
     raise SystemExit(0)
 bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 bus.call_sync("io.github.agcarbajo.GalaxyCompanion", "/io/github/agcarbajo/GalaxyCompanion",

@@ -46,7 +46,7 @@ All sections are optional; only the ones a listed feature needs are read.
   "id": "gts9uwifi",                 // file name without .json
   "name": "Galaxy Tab S9 Ultra",     // shown in the UI
   "model": "SM-X910",
-  "form_factor": "tablet",           // or "phone"
+  "form_factor": "tablet",           // "phone" or "foldable": the home page icon
   "soc": "Qualcomm Snapdragon 8 Gen 2 for Galaxy (SM8550)",  // About → Details
   "match": {"compatible": ["samsung,gts9uwifi"], "model": ["Samsung Galaxy Tab S9 Ultra Wi-Fi"]},
   "features": ["spen", "spen-dock", "..."],

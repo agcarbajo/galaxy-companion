@@ -16,24 +16,53 @@ def read(path):
         return ""
 
 
-def rows():
-    unknown = _("Unknown")
-    installed = update_bundle.current()
+MEMINFO = "/proc/meminfo"
+# Sizes phones and tablets are sold with, in GB.  The kernel reports less
+# than is fitted (firmware carve-outs), so the label is the next size up.
+MARKETED_GB = (1, 1.5, 2, 3, 4, 6, 8, 12, 16, 18, 24, 32, 48, 64)
+
+
+def os_release():
     release = {}
     for line in read("/etc/os-release").splitlines():
         key, sep, value = line.partition("=")
         if sep:
             release[key] = value.strip('"\'')
+    return release
+
+
+def processor():
     cpu = next((line.split(":", 1)[1].strip() for line in read("/proc/cpuinfo").splitlines()
                 if line.startswith(("model name", "Hardware")) and ":" in line), "")
     # /proc/cpuinfo on arm64 names no product; the profile knows the SoC.
-    cpu = device.current().soc or cpu or read("/sys/devices/soc0/machine") or unknown
-    memory, uptime = unknown, unknown
+    return device.current().soc or cpu or read("/sys/devices/soc0/machine")
+
+
+def memory_kib():
     try:
-        total = next(line.split()[1] for line in read("/proc/meminfo").splitlines() if line.startswith("MemTotal:"))
-        memory = _("{size} GiB usable").format(size=f"{int(total) / 1024**2:.1f}")
-    except (StopIteration, ValueError):
-        pass
+        return int(next(line.split()[1] for line in read(MEMINFO).splitlines() if line.startswith("MemTotal:")))
+    except (StopIteration, ValueError, IndexError):
+        return 0
+
+
+def marketed_memory(kib):
+    """"16 GB" for the 15.2 GiB a 16 GB device reports; "" when unknown."""
+    if kib <= 0:
+        return ""
+    gib = kib / 1024**2
+    size = next((size for size in MARKETED_GB if size >= gib), math.ceil(gib))
+    return f"{size:g} GB"
+
+
+def rows():
+    unknown = _("Unknown")
+    installed = update_bundle.current()
+    release = os_release()
+    cpu = processor() or unknown
+    memory, uptime = unknown, unknown
+    total = memory_kib()
+    if total:
+        memory = _("{size} GiB usable").format(size=f"{total / 1024**2:.1f}")
     try:
         seconds = float(read("/proc/uptime").split()[0])
         if not math.isfinite(seconds) or seconds < 0:

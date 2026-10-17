@@ -1,0 +1,75 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Install a newer Galaxy Companion package.  Runs as root through pkexec.
+
+    galaxy-companion-self-update <package.deb> <sha256>
+
+The package is copied into a root-only directory before anything reads it, so
+the file checked is the file installed.  Only `galaxy-companion`, only for all
+architectures and only newer than the installed version is accepted.
+"""
+import hashlib
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+PACKAGE = "galaxy-companion"
+MAX_DEB = 64 * 1024**2
+ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "DEBIAN_FRONTEND": "noninteractive", "LANG": "C.UTF-8"}
+
+
+def fail(message):
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
+def field(path, name):
+    return subprocess.run(["dpkg-deb", "-f", path, name], capture_output=True, text=True,
+                          env=ENV, check=True).stdout.strip()
+
+
+def main(argv):
+    if len(argv) != 3 or not argv[1].endswith(".deb") or not re.fullmatch(r"[0-9a-f]{64}", argv[2]):
+        fail("usage: galaxy-companion-self-update <package.deb> <sha256>")
+    source, digest = argv[1], argv[2]
+    if os.geteuid() != 0:
+        fail("must run as root")
+    work = tempfile.mkdtemp(prefix="galaxy-companion-update-")
+    try:
+        os.chmod(work, 0o700)
+        package = os.path.join(work, "galaxy-companion.deb")
+        # O_NOFOLLOW: the caller owns the source directory, not what it points at.
+        fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, "rb") as src, open(package, "wb") as dst:
+            if os.fstat(src.fileno()).st_size > MAX_DEB:
+                fail("package too large")
+            shutil.copyfileobj(src, dst)
+        h = hashlib.sha256()
+        with open(package, "rb") as stream:
+            for block in iter(lambda: stream.read(1024**2), b""):
+                h.update(block)
+        if h.hexdigest() != digest:
+            fail("checksum mismatch")
+        if field(package, "Package") != PACKAGE or field(package, "Architecture") != "all":
+            fail("not a Galaxy Companion package")
+        version = field(package, "Version")
+        current = subprocess.run(["dpkg-query", "-W", "-f=${Version}", PACKAGE], capture_output=True,
+                                 text=True, env=ENV).stdout.strip()
+        if current and subprocess.run(["dpkg", "--compare-versions", version, "gt", current], env=ENV).returncode:
+            fail(f"{version} is not newer than {current}")
+        # apt resolves new dependencies; dpkg alone would leave them broken.
+        command = (["apt-get", "install", "-y", "--no-remove", package] if shutil.which("apt-get", path=ENV["PATH"])
+                   else ["dpkg", "-i", package])
+        result = subprocess.run(command, env=ENV, stdout=sys.stderr)
+        if result.returncode:
+            fail("installation failed")
+        print(version)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main(sys.argv)

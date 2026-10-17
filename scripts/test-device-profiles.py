@@ -150,21 +150,21 @@ class WindowPageTests(unittest.TestCase):
     def test_tab_s9_ultra_pages(self):
         pages = self.pages("gts9uwifi")
         # Dual boot also needs its helpers installed under /usr/libexec.
-        expected = ["pen", "keyboard", "haptics", "fingerprint", "updates"]
+        expected = ["home", "pen", "keyboard", "haptics", "fingerprint", "updates"]
         self.assertEqual([p for p in pages if p != "dualboot"], expected)
 
     def test_galaxy_s9_plus_pages(self):
         pages = self.pages("star2lte")
-        self.assertIn("haptics", pages)
+        self.assertEqual(pages[:2], ["home", "haptics"])
         for absent in ("pen", "keyboard", "dualboot", "updates"):
             self.assertNotIn(absent, pages)
 
-    def test_device_with_nothing_shows_one_status_page(self):
+    def test_device_with_nothing_shows_only_home(self):
         with tempfile.TemporaryDirectory() as directory:
             Path(directory, "bare.json").write_text(json.dumps({
                 "id": "bare", "name": "Galaxy Test", "match": {"compatible": ["x,none"]},
                 "features": ["-haptics", "-fingerprint", "-spen"]}))
-            self.assertEqual(self.pages("bare", directory), ["nothing"])
+            self.assertEqual(self.pages("bare", directory), ["home"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 import os
+from pathlib import Path
 
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
@@ -10,6 +11,7 @@ from . import device
 from . import update_bundle
 from .actions import action_for, action_label, actions_for
 from .fingerprint_page import FingerprintPage
+from .home_page import HomePage
 from .update_page import UpdatePage
 from . import update_monitor
 from . import system_summary
@@ -52,6 +54,12 @@ KEYS = (
 )
 
 PROJECT_URL = "https://github.com/agcarbajo/galaxy-companion"
+# The device icons ship in the package's icon directory, which is the system
+# one once installed and needs adding when running from a checkout.
+ICONS = Path(__file__).resolve().parents[3] / "share" / "icons"
+# Room each bottom bar entry needs before its label stops fitting; below that
+# the pages move to a menu.
+SWITCHER_ENTRY_WIDTH = 104
 
 
 def compatible_keyboards(profile):
@@ -171,6 +179,10 @@ class CompanionWindow(Adw.ApplicationWindow):
     def __init__(self, application):
         super().__init__(application=application, title="Galaxy Companion")
         self.set_default_size(960, 760)
+        # Small enough for a phone held upright; the breakpoint takes it from there.
+        self.set_size_request(360, 294)
+        if ICONS.is_dir():
+            Gtk.IconTheme.get_for_display(Gdk.Display.get_default()).add_search_path(str(ICONS))
         self.device = device.current()
         self.settings = Gio.Settings.new("io.github.agcarbajo.GalaxyCompanion")
         self.hardware = HardwareClient()
@@ -207,6 +219,8 @@ class CompanionWindow(Adw.ApplicationWindow):
         self.fingerprint_page = None
         self.update_page = None
         self.update_stack_page = None
+        self.home_page = HomePage(self)
+        self.view_stack.add_titled_with_icon(self.home_page, "home", _("Home"), "go-home-symbolic")
         # A digitizer alone has nothing to configure: the options live on the
         # silo's driver and the button actions arrive over Bluetooth.
         if has("spen") and (has("spen-dock") or has("spen-remote")):
@@ -234,12 +248,15 @@ class CompanionWindow(Adw.ApplicationWindow):
                 self.update_page, "updates", _("Updates"), "software-update-available-symbolic"
             )
         self.refresh_update_badge()
-        if self.view_stack.get_pages().get_n_items() == 0:
-            self.view_stack.add_named(self._nothing_page(), "nothing")
+        pages = self.view_stack.get_pages()
+        if pages.get_n_items() == 1:
+            self.home_page.show_empty_note()
         toolbar.set_content(self.view_stack)
         # A switcher with a single entry is just a label taking up room.
-        if self.view_stack.get_pages().get_n_items() > 1:
-            toolbar.add_bottom_bar(Adw.ViewSwitcherBar(stack=self.view_stack, reveal=True))
+        if pages.get_n_items() > 1:
+            self.switcher_bar = Adw.ViewSwitcherBar(stack=self.view_stack, reveal=True)
+            toolbar.add_bottom_bar(self.switcher_bar)
+            self._add_page_menu(header, pages)
         self.set_content(toolbar)
 
         # Opening straight on a page is only for photographing the UI on a
@@ -252,16 +269,36 @@ class CompanionWindow(Adw.ApplicationWindow):
         if self.update_stack_page is not None:
             self.update_stack_page.set_needs_attention(update_monitor.available(update_monitor.load()))
 
-    def _nothing_page(self):
-        return Adw.StatusPage(
-            icon_name="io.github.agcarbajo.GalaxyCompanion-symbolic",
-            title=_("Nothing to set up yet"),
-            description=_(
-                "Galaxy Companion did not find an S Pen, a keyboard cover, a vibration "
-                "motor or a fingerprint reader on this {device}. A device profile can "
-                "describe the hardware it cannot find on its own."
-            ).format(device=self.device.name),
-        )
+    def _add_page_menu(self, header, pages):
+        """The bottom bar's pages, in a menu at the left of the header bar.
+
+        It replaces the bar once the window is too narrow for every label to
+        fit under its icon, as a phone held upright or a tablet split in two.
+        """
+        menu = Gio.Menu()
+        for index in range(pages.get_n_items()):
+            page = pages.get_item(index)
+            menu.append(page.get_title(), f"win.page::{page.get_name()}")
+        action = Gio.SimpleAction.new_stateful(
+            "page", GLib.VariantType.new("s"), GLib.Variant("s", self.view_stack.get_visible_child_name()))
+        action.connect("change-state", self._page_chosen)
+        self.add_action(action)
+        self.view_stack.connect("notify::visible-child-name", lambda stack, _pspec: action.set_state(
+            GLib.Variant("s", stack.get_visible_child_name() or "")))
+        self.page_menu = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu,
+                                        tooltip_text=_("Pages"), visible=False)
+        header.pack_start(self.page_menu)
+
+        width = sum(max(SWITCHER_ENTRY_WIDTH, 8 * len(pages.get_item(i).get_title()) + 32)
+                    for i in range(pages.get_n_items()))
+        breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse(f"max-width: {width}sp"))
+        breakpoint.add_setter(self.switcher_bar, "visible", False)
+        breakpoint.add_setter(self.page_menu, "visible", True)
+        self.add_breakpoint(breakpoint)
+
+    def _page_chosen(self, action, value):
+        action.set_state(value)
+        self.view_stack.set_visible_child_name(value.get_string())
 
     @staticmethod
     def _page():
