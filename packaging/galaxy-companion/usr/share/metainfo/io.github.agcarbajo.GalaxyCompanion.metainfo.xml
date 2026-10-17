@@ -20,6 +20,9 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
+    <release version="2.5.1" date="2026-10-17">
+      <description><p>The offline step of a port update now carries the dual-boot module its frozen runner imports; without it the step stopped before writing anything and restored the previous boot set on every device with dual boot.</p></description>
+    </release>
     <release version="2.5.0" date="2026-10-17">
       <description><p>System updates can install an Ubuntu release upgrade: a build ZIP whose manifest declares one hands off to the migration backend it carries, either from the port's published release or from a local file after its complete SHA-256 is shown and confirmed. A failed offline update now configures the packages it had unpacked before restoring the previous boot images. Both work from the device profile alone.</p></description>
     </release>

@@ -3,6 +3,7 @@
 import argparse
 import fcntl
 import hashlib
+import importlib
 import json
 import os
 import re
@@ -248,9 +249,14 @@ def install_runner():
     package = TRANSACTION / "galaxy_companion"
     package.mkdir()
     (package / "__init__.py").write_text("")
-    for name in ("update_core.py", "update_bundle.py", "update_policy.py", "device.py"):
+    # boot_core is what saved_set() imports in the offline step; freezing the
+    # four others without it made that step fail and roll back on every device
+    # with dual boot.
+    for name in ("update_core.py", "update_bundle.py", "update_policy.py", "device.py", "boot_core.py"):
         # get_source also works when the legacy bootstrap runs as a zipapp.
-        module = sys.modules[__package__ + "." + name[:-3]]
+        # Import rather than look up sys.modules: boot_core is only imported
+        # lazily, in the offline step.
+        module = importlib.import_module(__package__ + "." + name[:-3])
         source = module.__loader__.get_source(module.__name__)
         (package / name).write_text(source)
     # The profile is frozen with the code: the package that shipped it may be

@@ -158,6 +158,36 @@ class OfflineTransactionTests(unittest.TestCase):
         self.assertNotIn(["systemctl", "--no-block", "start", "emergency.target"], self.commands)
 
 
+class FrozenRunnerTests(unittest.TestCase):
+    def test_frozen_runner_is_a_complete_package_with_its_profile(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            transaction = root / "transaction"
+            transaction.mkdir()
+            units = root / "systemd"
+            units.mkdir()
+            real_path = c.Path
+            with patch.object(c, "TRANSACTION", transaction), patch.object(c, "run"), \
+                    patch.object(c, "Path", side_effect=lambda value: units if value == "/etc/systemd/system" else real_path(value)):
+                c.install_runner()
+            self.assertTrue((transaction / "runner.py").is_file())
+            self.assertTrue((transaction / "devices" / Path(b.DEVICE.profile_path).name).is_file())
+            self.assertTrue((units / c.UNIT).is_file())
+            # Import the frozen package the way the runner does, in a clean
+            # interpreter: every module update_core needs offline must be there.
+            script = ("import os, sys\n"
+                      "os.environ['GALAXY_COMPANION_DEVICES_DIR'] = sys.argv[1] + '/devices'\n"
+                      "sys.path.insert(0, sys.argv[1])\n"
+                      "from galaxy_companion import update_core, boot_core\n"
+                      "assert update_core.bundle.DEVICE.id == sys.argv[2], update_core.bundle.DEVICE.id\n"
+                      "assert update_core.saved_set.__module__ == 'galaxy_companion.update_core'\n"
+                      "print('frozen-ok')\n")
+            result = subprocess.run([sys.executable, "-c", script, str(transaction), b.DEVICE.id],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "frozen-ok")
+
+
 class CommandLineTests(unittest.TestCase):
     def test_local_trust_requires_zip_and_exact_digest(self):
         for argv in (["--latest", "--trust-local-sha256", "a" * 64],
