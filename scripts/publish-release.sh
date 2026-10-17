@@ -3,6 +3,8 @@
 # release of this repository, with the SHA256SUMS both updaters require.
 #   DUALBOOT_SIGNING=../keys/dualboot-release.properties scripts/publish-release.sh
 #   GH=../gh-agc.sh ...   use another gh wrapper
+#   PRERELEASE=1 ...      mark it as a pre-release: the updaters, which ask
+#                         GitHub for the latest release, do not offer it
 # The APK must be signed with the release key every time: Android only
 # installs an update signed like the app already installed.
 set -euo pipefail
@@ -35,4 +37,5 @@ for release in ET.parse(sys.argv[1]).iter("release"):
 PY
 )
 "$gh" release create "v$version" "$out/$deb" "$out/$apk" "$out/SHA256SUMS" \
-	--repo agcarbajo/galaxy-companion --title "Galaxy Companion $version" --notes "$notes"
+	--repo agcarbajo/galaxy-companion --title "Galaxy Companion $version" --notes "$notes" \
+	${PRERELEASE:+--prerelease}
