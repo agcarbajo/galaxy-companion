@@ -59,9 +59,11 @@ class ProfileTests(unittest.TestCase):
             for model in data.get("keyboard_cover", {}).get("models", ()):
                 self.assertTrue(model["model"] and model["name"], path)
             if "updates" in data.get("features", ()):
-                self.assertTrue(data["updates"]["repository"] and data.get("boot_partitions"), path)
+                self.assertTrue(data["updates"]["repository"] and device.boot_partitions(data), path)
             if "dual-boot" in data.get("features", ()):
-                self.assertTrue(data["dual_boot"]["sets_dir"] and data.get("boot_partitions"), path)
+                # What the Android app needs to find this device and Linux's root.
+                dual = data["dual_boot"]
+                self.assertTrue(dual["partitions"] and dual["linux_root"] and dual["android_devices"], path)
 
     def test_tab_s9_ultra_by_compatible(self):
         found = self.resolve(("qcom,kalama-mtp", "qcom,kalama", "qcom,mtp", "samsung,gts9uwifi", "qcom,sm8550"),
@@ -92,6 +94,15 @@ class ProfileTests(unittest.TestCase):
         # A cover keyboard name alone is not enough to drive one.
         self.assertEqual(found.features, frozenset({"haptics", "spen"}))
         self.assertEqual(found.boot_partitions, ())
+
+    def test_boot_partitions_by_name_or_with_size(self):
+        self.assertEqual(device.boot_partitions({"dual_boot": {"partitions": ["boot"]}}), (("boot", 0, ""),))
+        self.assertEqual(device.boot_partitions({"dual_boot": {"partitions": [
+            {"name": "boot", "size": 4096, "fallback": "/dev/sda1"}, "dtbo", 7]}}),
+            (("boot", 4096, "/dev/sda1"), ("dtbo", 0, "")))
+        # A port with updates but no dual boot still lists them at the top.
+        self.assertEqual(device.boot_partitions({"boot_partitions": [{"name": "boot", "size": 1}]}),
+                         (("boot", 1, ""),))
 
     def test_unknown_device_without_hardware_has_no_features(self):
         found = self.resolve((), "")

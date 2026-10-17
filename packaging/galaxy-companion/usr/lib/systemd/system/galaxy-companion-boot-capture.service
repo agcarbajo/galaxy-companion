@@ -1,0 +1,13 @@
+[Unit]
+Description=Save this Linux's boot partitions for dual boot
+Documentation=https://github.com/agcarbajo/galaxy-companion/blob/main/docs/dual-boot.md
+# Before anyone logs in, so nothing has written the boot partitions yet.
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=systemd-user-sessions.service display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/galaxy-companion-boot-capture
+
+[Install]
+WantedBy=multi-user.target

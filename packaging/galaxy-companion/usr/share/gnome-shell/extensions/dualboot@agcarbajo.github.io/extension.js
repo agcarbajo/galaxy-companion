@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 //
-// A quick settings entry that restarts the tablet into the other system.
+// A quick settings entry that restarts the device into the other system.
 //
 // It owns no logic of its own: the same two libexec helpers the Galaxy Companion
 // window uses do the reading and the writing, behind the same polkit rules.

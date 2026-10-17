@@ -46,6 +46,9 @@ if command -v systemctl >/dev/null 2>&1; then
 	systemctl enable galaxy-companion-spen-pairing.service >/dev/null 2>&1 || true
 	systemctl restart galaxy-companion-spen-pairing.service || true
 	systemctl enable galaxy-companion-charge-limit.service >/dev/null 2>&1 || true
+	# Enabled, not started: it saves the boot partitions as they are at boot,
+	# and in the middle of an upgrade they may already hold a newer kernel.
+	systemctl enable galaxy-companion-boot-capture.service >/dev/null 2>&1 || true
 	systemctl restart galaxy-companion-charge-limit.service || true
 	systemctl --global enable galaxy-companion-haptics-enable.service >/dev/null 2>&1 || true
 	systemctl --global enable galaxy-companion-update-check.timer >/dev/null 2>&1 || true

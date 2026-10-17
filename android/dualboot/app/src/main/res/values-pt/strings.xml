@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about">Acerca</string>
+    <string name="close">Fechar</string>
+
+    <string name="section_systems">Sistemas</string>
+    <string name="section_storage">Armazenamento</string>
+    <string name="section_settings">Definições</string>
+
+    <string name="hero_checking">A verificar…</string>
+    <string name="hero_checking_body">A ler as partições de arranque.</string>
+    <string name="hero_no_root">Sem root</string>
+    <string name="hero_unknown">Sistema desconhecido</string>
+    <string name="hero_unknown_body">As partições de arranque não correspondem a nenhum sistema guardado.</string>
+    <string name="hero_running">Está a usar</string>
+    <string name="hero_next">No próximo reinício arranca %1$s.</string>
+
+    <string name="state_in_use">Em uso agora</string>
+    <string name="state_next_boot">Arranca no próximo reinício</string>
+    <string name="state_ready">Pronto a arrancar</string>
+    <string name="state_incomplete">Faltam imagens ou têm um tamanho estranho</string>
+
+    <string name="action_stage">Mudar no próximo reinício</string>
+    <string name="action_console">Ver o detalhe</string>
+    <string name="action_reboot">Reiniciar</string>
+    <string name="action_cancel">Anular</string>
+
+    <string name="storage_used_of">%1$s de %2$s</string>
+
+    <string name="settings_skip_title">Reiniciar sem perguntar</string>
+    <string name="settings_skip_body">O botão das definições rápidas muda de sistema assim que lhe tocas.</string>
+    <string name="settings_add_tile">Adicionar às definições rápidas</string>
+    <string name="settings_refresh">Verificar de novo</string>
+
+    <string name="tile_added">Adicionado às definições rápidas.</string>
+    <string name="tile_already_added">Já lá estava.</string>
+    <string name="tile_rejected">Não foi adicionado.</string>
+    <string name="tile_request_failed">O sistema não aceitou o pedido.</string>
+
+    <string name="error_no_root">Sem acesso root. Conceda-o a esta app no seu gestor de root (Magisk, KernelSU…) e lembre-se de que um pedido que expira fica guardado como recusado.</string>
+
+    <string name="progress_title">A escrever as partições de arranque</string>
+    <string name="progress_done_title">Pronto</string>
+    <string name="progress_failed_title">Parou</string>
+    <string name="progress_staged">No próximo reinício arranca %1$s.</string>
+    <string name="progress_reverted">Não muda nada: continua a arrancar %1$s.</string>
+    <string name="progress_incomplete">Ao conjunto de %1$s faltam imagens ou têm um tamanho estranho.</string>
+    <string name="progress_write_failed">Não consegui escrever %1$s.</string>
+    <string name="progress_mismatch">%1$s não corresponde ao ser relida. Não reinicies: verifica primeiro.</string>
+
+
+    <string name="tile_unavailable">Não há outro sistema</string>
+    <string name="tile_confirm_title">Reiniciar em %1$s?</string>
+    <string name="tile_confirm_message">As partições de arranque serão escritas e o dispositivo vai reiniciar. Os seus ficheiros ficam onde estão.</string>
+    <string name="tile_confirm_ok">Reiniciar</string>
+    <string name="tile_writing">A escrever as partições de arranque…</string>
+    <string name="tile_failed">Não ficou concluído. Não reiniciou nada.</string>
+    <string name="about_what">Alterne entre Android e Linux no seu Samsung Galaxy.</string>
+    <string name="about_creator">Criador original</string>
+    <string name="about_project">Parte do Galaxy Companion, a app de acompanhamento para dispositivos Samsung com Linux mainline.</string>
+    <string name="about_project_link">Ver projeto no GitHub</string>
+    <string name="about_version">Versão %1$s</string>
+    <string name="hero_unsupported">Não suportado</string>
+    <string name="hero_unsupported_body">O Galaxy Companion não tem perfil de arranque duplo para %1$s.</string>
+    <string name="hint_no_linux_root">Não foi encontrado Linux na partição %1$s. Instale-o primeiro; depois esta app guarda sozinha as partições de arranque do Android.</string>
+    <string name="hint_no_linux_set">O Android está guardado. O Linux ainda não guardou as suas partições de arranque: inicie-o uma vez depois de o instalar e ele fá-lo sozinho.</string>
+    <string name="progress_backup_failed">Não foi possível atualizar a cópia guardada do Android, por isso nada foi escrito. O detalhe está na consola.</string>
+</resources>

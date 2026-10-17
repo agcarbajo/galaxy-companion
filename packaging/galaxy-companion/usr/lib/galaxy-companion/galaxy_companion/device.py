@@ -177,6 +177,26 @@ def _generic_name(model):
     return model or "Samsung Galaxy"
 
 
+def boot_partitions(data):
+    """(name, size, fallback) for each partition a switch or an update writes.
+
+    They are listed under `dual_boot.partitions`, either as bare names or as
+    {"name", "size", "fallback"}.  A size of 0 means "whatever the partition
+    is": the image must then match the live partition's own size.  A
+    top-level `boot_partitions` list is still read, for a port that publishes
+    updates without having dual boot.
+    """
+    listed = (data.get("dual_boot") or {}).get("partitions") or data.get("boot_partitions") or ()
+    parts = []
+    for part in listed:
+        if isinstance(part, str):
+            part = {"name": part}
+        if not isinstance(part, dict) or not isinstance(part.get("name"), str):
+            continue
+        parts.append((part["name"], int(part.get("size") or 0), part.get("fallback", "")))
+    return tuple(parts)
+
+
 def build(data, compatible=(), model="", detected=frozenset()):
     """A Device from a profile (or None for a generic device) plus detection."""
     if data is None:
@@ -203,10 +223,7 @@ def build(data, compatible=(), model="", detected=frozenset()):
         keyboard_cover=data.get("keyboard_cover", {}),
         haptics=data.get("haptics", {}),
         flashlight=data.get("flashlight", {}),
-        boot_partitions=tuple(
-            (part["name"], int(part["size"]), part.get("fallback", ""))
-            for part in data.get("boot_partitions", ())
-        ),
+        boot_partitions=boot_partitions(data),
         dual_boot=data.get("dual_boot", {}),
         updates=data.get("updates", {}),
         notification_led=data.get("notification_led", {}),

@@ -8,19 +8,21 @@ local session may run the switch outright, which is done with a rule file.
 
 Turning it on and off is itself a privileged action, guarded by its own polkit
 action.  That asymmetry is the point: giving away a password prompt should
-cost a password prompt, so nothing but a person at the tablet can arrange for
-the tablet to stop asking.
+cost a password prompt, so nothing but a person at the device can arrange for
+it to stop asking.
 
 What this grants is narrow — the boot switch action and nothing else — but it
-is still real: with it on, anyone with the tablet unlocked can replace the boot
+is still real: with it on, anyone with the device unlocked can replace the boot
 partitions and restart it.  That is the same trade the Android side makes with
 "restart without asking", and it is off until asked for.
 """
 
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/usr/lib/galaxy-companion")
+# Installed: /usr/libexec next to /usr/lib/galaxy-companion; same from a checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
 
 from galaxy_companion import boot_core  # noqa: E402
 

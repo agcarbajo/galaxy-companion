@@ -62,7 +62,7 @@ own package, under `/usr/share/galaxy-companion/devices/<id>.json`.
 | `haptics` | FF_RUMBLE vibration motor: on-screen keyboard and notification feedback | known motor names |
 | `fingerprint` | fprintd enrollment page | fprintd installed |
 | `flashlight` | "Toggle the flashlight" action, through the device's helper | no |
-| `dual-boot` | Android/Linux boot partition switching | no |
+| `dual-boot` | Android/Linux switching, with the Dualboot Android app ([dual-boot.md](dual-boot.md)) | no |
 | `updates` | whole-port updates published as GitHub releases | no |
 | `notification-led` | LED page: rules for a multicolour status LED (notifications per app, battery, charging, media), quiet hours | no |
 | `charge-limit` | "Other" page: stop charging at a chosen level | no |
@@ -105,10 +105,17 @@ All sections are optional; only the ones a listed feature needs are read.
   "flashlight": {"led": "white:flash", "helper": "/usr/bin/gts9u-flashlight",
                  "schema": "io.github.agcarbajo.GTS9UFlashlight",
                  "icon": "gts9u-flashlight-symbolic"},
-  "boot_partitions": [{"name": "boot", "size": 100663296, "fallback": "/dev/sda21"}],
-  "dual_boot": {"sets_dir": "/var/lib/gts9u-boot-sets",
-                "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules",
-                "android_data_partition": "sda34"},
+  "dual_boot": {"partitions": [{"name": "boot", "size": 100663296, "fallback": "/dev/sda21"},
+                               "init_boot", "vendor_boot", "dtbo"],  // or just names
+                "kernel_partition": "boot",
+                "linux_root": "linuxroot",            // Linux's root, mounted by the Android app
+                "android_devices": ["gts9uwifi"],     // ro.product.device
+                "android_data": "userdata",
+                "sets_dir": "/var/lib/gts9u-boot-sets",
+                "backups_dir": "/var/lib/gts9u-boot-backups",
+                "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules"},
+                // see dual-boot.md; a port with updates but no dual boot lists
+                // its partitions as a top-level "boot_partitions" instead
   "notification_led": {"led": "rgb:status",          // /sys/class/leds/<this>
                        "default_trigger": "..."},   // given back when the rules are off
   "bixby_key": {"input": "gpio-keys", "code": 212},  // evdev name and key code; read, never grabbed

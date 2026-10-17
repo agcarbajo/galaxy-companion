@@ -15,6 +15,14 @@ such as a battery charge limit where the device supports them.
 
 Other devices run with the features that can be detected without a profile.
 
+## Dual boot
+
+On devices where Android and Linux are installed side by side, Galaxy Companion
+and the **Dualboot** Android app in [`android/dualboot`](android/dualboot) restart
+into either system from the other. Each system saves its own boot partitions:
+after installing Linux, start it once, then open the app on Android. See
+[docs/dual-boot.md](docs/dual-boot.md).
+
 ## Updates
 
 Galaxy Companion updates itself from this repository's releases, separately
@@ -24,18 +32,11 @@ from the device's port: the home page checks for a newer
 With weekly checks on, it also sends a notification. `scripts/publish-release.sh`
 runs the tests, builds the package and publishes both files.
 
-## Repository layout
-
-- `packaging/galaxy-companion/`: the Debian package tree (app, backend, services, profiles)
-- `scripts/build-companion-package.sh`: builds `galaxy-companion_<version>_all.deb`
-- `scripts/test-*.py`: tests; `ci/run-tests.sh` runs all of them plus the package
-  build in an Ubuntu 24.04 container (GTK 4, libadwaita, headless) from any host with Docker
-- `docs/`: design notes and device profiles
-
 ## Adding a device
 
 Each supported device has a small JSON profile describing its hardware. To add
-yours, see [docs/device-profiles.md](docs/device-profiles.md).
+yours, see [docs/device-profiles.md](docs/device-profiles.md), and
+[docs/dual-boot.md](docs/dual-boot.md#adding-a-device) for dual boot.
 
 ## License
 

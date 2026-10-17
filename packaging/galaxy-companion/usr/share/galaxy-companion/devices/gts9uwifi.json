@@ -91,32 +91,39 @@
     "schema": "io.github.agcarbajo.GTS9UFlashlight",
     "icon": "gts9u-flashlight-symbolic"
   },
-  "boot_partitions": [
-    {
-      "name": "boot",
-      "size": 100663296,
-      "fallback": "/dev/sda21"
-    },
-    {
-      "name": "init_boot",
-      "size": 8388608,
-      "fallback": "/dev/sda22"
-    },
-    {
-      "name": "vendor_boot",
-      "size": 100663296,
-      "fallback": "/dev/sda24"
-    },
-    {
-      "name": "dtbo",
-      "size": 16777216,
-      "fallback": "/dev/sda30"
-    }
-  ],
   "dual_boot": {
+    "partitions": [
+      {
+        "name": "boot",
+        "size": 100663296,
+        "fallback": "/dev/sda21"
+      },
+      {
+        "name": "init_boot",
+        "size": 8388608,
+        "fallback": "/dev/sda22"
+      },
+      {
+        "name": "vendor_boot",
+        "size": 100663296,
+        "fallback": "/dev/sda24"
+      },
+      {
+        "name": "dtbo",
+        "size": 16777216,
+        "fallback": "/dev/sda30"
+      }
+    ],
+    "kernel_partition": "boot",
+    "linux_root": "linuxroot",
+    "android_data": "userdata",
+    "android_devices": [
+      "gts9uwifi",
+      "gts9u"
+    ],
     "sets_dir": "/var/lib/gts9u-boot-sets",
-    "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules",
-    "android_data_partition": "sda34"
+    "backups_dir": "/var/lib/gts9u-boot-backups",
+    "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules"
   },
   "updates": {
     "repository": "agcarbajo/ubuntu-galaxy-tab-s9-ultra",

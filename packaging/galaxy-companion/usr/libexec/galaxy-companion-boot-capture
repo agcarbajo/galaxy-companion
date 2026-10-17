@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Save the running Linux's boot partitions as its dual boot set.
+
+Run once per boot by galaxy-companion-boot-capture.service, before anyone can
+log in: at that point nothing has written the boot partitions since the
+bootloader read them, so they are exactly the ones that started this Linux.
+That is how Linux "configures itself" for dual boot after being installed,
+and how a kernel update reaches the saved set.  Does nothing on a device
+without dual boot.
+"""
+
+import fcntl
+import sys
+from pathlib import Path
+
+# Installed: /usr/libexec next to /usr/lib/galaxy-companion; same from a checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
+
+from galaxy_companion import boot_core  # noqa: E402
+
+
+def main():
+    if not boot_core.available():
+        return 0
+    from galaxy_companion.update_core import boot_lock
+    with boot_lock() as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            # An offline port update holds it; it rewrites the boot
+            # partitions and the saved set itself, then restarts.
+            boot_core.emit("error", "busy")
+            return 0
+        try:
+            return 0 if boot_core.capture_running_linux(boot_core.emit) else 1
+        except OSError as error:
+            boot_core.emit("error", "write-failed", part=boot_core.SETS_DIR, detail=str(error))
+            return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

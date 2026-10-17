@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Replace the four boot partitions with one stored set, then optionally reboot.
+"""Replace the boot partitions with one stored set, then optionally reboot.
 
 Separate from galaxy-companion-boot-status on purpose: pkexec authorises by
 executable path, so the read-only helper can be allowed silently while this one
-asks for a password.
+asks for a password.  Progress goes out as JSON lines (see boot_core.emit).
 """
 
-import subprocess
 import fcntl
+import subprocess
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/usr/lib/galaxy-companion")
+# Installed: /usr/libexec next to /usr/lib/galaxy-companion; same from a checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
 
 from galaxy_companion import boot_core  # noqa: E402
 
 
 def main(argv):
-    if len(argv) < 2:
-        boot_core.emit("error", "Falta el nombre del sistema.")
+    if len(argv) < 2 or not boot_core.SET_ID.match(argv[1]):
+        boot_core.emit("error", "missing-argument")
         return 2
 
     set_id = argv[1]
@@ -29,16 +31,16 @@ def main(argv):
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            boot_core.emit("error", "An update or boot switch is already running.")
+            boot_core.emit("error", "busy")
             return 1
         if status().get("state") in ("ready", "applying"):
-            boot_core.emit("error", "Install or cancel the prepared update before switching systems.")
+            boot_core.emit("error", "update-pending")
             return 1
         if not boot_core.write_set(set_id, boot_core.emit):
             return 1
 
     if reboot:
-        boot_core.emit("step", "Reiniciando…")
+        boot_core.emit("step", "rebooting")
         subprocess.run(["systemctl", "reboot"], check=False)
     return 0
 

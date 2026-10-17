@@ -28,9 +28,17 @@ UNIT = bundle.CONFIG.get("offline_unit", "galaxy-companion-offline-update.servic
 LOCK = bundle.CONFIG.get("lock", "/run/lock/galaxy-companion-boot.lock")
 ROOT_LABEL = bundle.CONFIG.get("root_label", "")
 REQUIRED_PACKAGES = set(bundle.CONFIG.get("required_packages", ()))
-# The dual boot's saved Ubuntu set, refreshed with the new boot images.
-_SETS_DIR = bundle.DEVICE.dual_boot.get("sets_dir") if bundle.DEVICE.has("dual-boot") else None
-SAVED_SET = Path(_SETS_DIR) / "ubuntu" if _SETS_DIR else None
+
+
+def saved_set():
+    """The dual boot's saved Linux set, refreshed with the new boot images:
+    whichever set is Linux's ("ubuntu" on sets older than the kind file)."""
+    from . import boot_core
+    if not boot_core.available():
+        return None
+    return Path(boot_core.SETS_DIR) / boot_core.linux_set_id()
+
+
 PROGRESS_JSON = False
 
 
@@ -504,15 +512,16 @@ def apply_offline():
         emit("Writing and verifying the matching boot images…")
         for part, size in bundle.PARTITIONS.items():
             copy_partition(TRANSACTION / (part + ".img"), devices[part], size)
-        # Refresh only Ubuntu's saved set; Android's set and vbmeta stay intact.
-        if SAVED_SET is not None:
-            saved = SAVED_SET
+        # Refresh only Linux's saved set; Android's set and vbmeta stay intact.
+        saved = saved_set()
+        if saved is not None:
             saved.parent.mkdir(parents=True, exist_ok=True)
             new_set = TRANSACTION / "new-ubuntu-set"
             new_set.mkdir(exist_ok=True)
             for part in bundle.PARTITIONS:
                 shutil.copyfile(TRANSACTION / (part + ".img"), new_set / (part + ".img"))
             (new_set / "name.txt").write_text("Ubuntu " + plan["tag"] + "\n")
+            (new_set / "kind").write_text("linux\n")
             if saved.exists():
                 if (backup / "ubuntu-set").exists():
                     shutil.rmtree(saved)
@@ -535,8 +544,8 @@ def apply_offline():
                     write_json(bundle.IDENTITY, json.loads((backup / "identity.json").read_text()))
                 elif bundle.IDENTITY.exists():
                     bundle.IDENTITY.unlink()
-                if SAVED_SET is not None and (backup / "ubuntu-set").exists():
-                    saved = SAVED_SET
+                saved = saved_set()
+                if saved is not None and (backup / "ubuntu-set").exists():
                     if saved.exists():
                         shutil.rmtree(saved)
                     shutil.copytree(backup / "ubuntu-set", saved)

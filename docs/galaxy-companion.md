@@ -295,7 +295,8 @@ and can be turned off under the S Pen behaviour options.
 ## Dual boot
 
 The Dualboot page lists the systems whose boot sets are saved on the root
-filesystem, says which one is running, and switches to the other. Switching
+filesystem, says which one is running, and switches to the other. Linux saves
+its own set at every boot; Android's is saved by the Dualboot Android app. Switching
 needs authorisation, which polkit asks for with the user's password; a toggle
 in that page can install a rule that stops it asking every time. There is also
 a quick settings toggle. See [dual-boot.md](dual-boot.md).

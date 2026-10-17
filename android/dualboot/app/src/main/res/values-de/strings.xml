@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about">Info</string>
+    <string name="close">Schließen</string>
+
+    <string name="section_systems">Systeme</string>
+    <string name="section_storage">Speicher</string>
+    <string name="section_settings">Einstellungen</string>
+
+    <string name="hero_checking">Wird geprüft…</string>
+    <string name="hero_checking_body">Die Boot-Partitionen werden gelesen.</string>
+    <string name="hero_no_root">Kein Root</string>
+    <string name="hero_unknown">Unbekanntes System</string>
+    <string name="hero_unknown_body">Die Boot-Partitionen passen zu keinem gespeicherten System.</string>
+    <string name="hero_running">Du verwendest</string>
+    <string name="hero_next">Beim nächsten Neustart startet %1$s.</string>
+
+    <string name="state_in_use">Läuft gerade</string>
+    <string name="state_next_boot">Startet beim nächsten Neustart</string>
+    <string name="state_ready">Startbereit</string>
+    <string name="state_incomplete">Es fehlen Abbilder oder sie haben eine seltsame Größe</string>
+
+    <string name="action_stage">Beim nächsten Neustart wechseln</string>
+    <string name="action_console">Details anzeigen</string>
+    <string name="action_reboot">Neu starten</string>
+    <string name="action_cancel">Rückgängig</string>
+
+    <string name="storage_used_of">%1$s von %2$s</string>
+
+    <string name="settings_skip_title">Ohne Nachfrage neu starten</string>
+    <string name="settings_skip_body">Die Schnelleinstellungs-Kachel wechselt das System, sobald du sie antippst.</string>
+    <string name="settings_add_tile">Zu den Schnelleinstellungen hinzufügen</string>
+    <string name="settings_refresh">Erneut prüfen</string>
+
+    <string name="tile_added">Zu den Schnelleinstellungen hinzugefügt.</string>
+    <string name="tile_already_added">War dort bereits vorhanden.</string>
+    <string name="tile_rejected">Wurde nicht hinzugefügt.</string>
+    <string name="tile_request_failed">Das System hat die Anfrage nicht angenommen.</string>
+
+    <string name="error_no_root">Kein Root-Zugriff. Gewähre ihn dieser App in deinem Root-Manager (Magisk, KernelSU…); eine abgelaufene Anfrage wird als abgelehnt gespeichert.</string>
+
+    <string name="progress_title">Boot-Partitionen werden geschrieben</string>
+    <string name="progress_done_title">Fertig</string>
+    <string name="progress_failed_title">Abgebrochen</string>
+    <string name="progress_staged">Beim nächsten Neustart startet %1$s.</string>
+    <string name="progress_reverted">Nichts ändert sich: %1$s startet weiterhin.</string>
+    <string name="progress_incomplete">Dem Satz von %1$s fehlen Abbilder, oder sie haben eine seltsame Größe.</string>
+    <string name="progress_write_failed">%1$s konnte nicht geschrieben werden.</string>
+    <string name="progress_mismatch">%1$s stimmt beim Zurücklesen nicht überein. Nicht neu starten: erst prüfen.</string>
+
+
+    <string name="tile_unavailable">Kein anderes System</string>
+    <string name="tile_confirm_title">In %1$s neu starten?</string>
+    <string name="tile_confirm_message">Die Boot-Partitionen werden geschrieben und das Gerät startet neu. Deine Dateien bleiben, wo sie sind.</string>
+    <string name="tile_confirm_ok">Neu starten</string>
+    <string name="tile_writing">Boot-Partitionen werden geschrieben…</string>
+    <string name="tile_failed">Nicht abgeschlossen. Es wurde nichts neu gestartet.</string>
+    <string name="about_what">Wechsle auf deinem Samsung Galaxy zwischen Android und Linux.</string>
+    <string name="about_creator">Ursprünglicher Entwickler</string>
+    <string name="about_project">Teil von Galaxy Companion, der Begleit-App für Samsung-Geräte mit Mainline-Linux.</string>
+    <string name="about_project_link">Projekt auf GitHub ansehen</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="hero_unsupported">Nicht unterstützt</string>
+    <string name="hero_unsupported_body">Galaxy Companion hat kein Dual-Boot-Profil für %1$s.</string>
+    <string name="hint_no_linux_root">Auf der Partition %1$s wurde kein Linux gefunden. Installiere es zuerst; danach speichert diese App die Boot-Partitionen von Android selbst.</string>
+    <string name="hint_no_linux_set">Android ist gespeichert. Linux hat seine Boot-Partitionen noch nicht gespeichert: Starte Linux nach der Installation einmal, dann erledigt es das selbst.</string>
+    <string name="progress_backup_failed">Die gespeicherte Kopie von Android konnte nicht aktualisiert werden, daher wurde nichts geschrieben. Details stehen in der Konsole.</string>
+</resources>

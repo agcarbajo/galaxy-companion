@@ -385,7 +385,7 @@ class CompanionWindow(Adw.ApplicationWindow):
 
         Everything privileged happens in the libexec helpers behind polkit;
         this page only asks and reports.  It has two faces: the dual-boot one,
-        and a plain explanation for a tablet that only carries Linux.
+        and a plain explanation for a device where only Linux is saved yet.
         """
         self.boot_stack = Gtk.Stack(vexpand=True)
 
@@ -393,8 +393,9 @@ class CompanionWindow(Adw.ApplicationWindow):
             icon_name="drive-multidisk-symbolic",
             title=_("Dual boot is not set up"),
             description=_(
-                "This tablet only has Linux installed. When Android shares the "
-                "storage with it, this page lets you restart into either system."
+                "Only one system is saved. Start Android once and open the "
+                "Dualboot app there: it saves Android's boot partitions, and "
+                "then either system can restart into the other."
             ),
         )
         self.boot_stack.add_named(self.boot_empty, "empty")
@@ -403,13 +404,14 @@ class CompanionWindow(Adw.ApplicationWindow):
 
         # One list, not two: which system is running and which one you can
         # switch to are the same question asked from either side.
+        parts = [name for name, _size, _fallback in device.current().boot_partitions]
         self.boot_systems = Adw.PreferencesGroup(
             title=_("Systems"),
             description=_(
-                "Ubuntu and Android take turns on the four boot partitions. "
-                "The tablet restarts into the one you choose; your files stay "
+                "The systems take turns on the boot partitions ({partitions}). "
+                "The device restarts into the one you choose; your files stay "
                 "where they are."
-            ),
+            ).format(partitions=", ".join(parts)),
         )
         self.boot_loading_row = Adw.ActionRow(
             title=_("Reading…"),
@@ -455,7 +457,7 @@ class CompanionWindow(Adw.ApplicationWindow):
             title=_("Switch systems without the password"),
             subtitle=_(
                 "There is no confirmation window: the password is the "
-                "confirmation. Without it, anyone holding the unlocked tablet "
+                "confirmation. Without it, anyone holding the unlocked device "
                 "can restart it into the other system."
             ),
         )
@@ -487,7 +489,7 @@ class CompanionWindow(Adw.ApplicationWindow):
         read from here — it encrypts its data — and a bar that guessed would be
         worse than one that admits it.
         """
-        linux = store.get("ubuntu")
+        linux = store.get("linux")
         android = store.get("android")
         total = (linux["total"] if linux else 0) + (android["total"] if android else 0)
         if not total:
@@ -674,7 +676,8 @@ class CompanionWindow(Adw.ApplicationWindow):
         if current is None:
             row = Adw.ActionRow(
                 title=_("Unknown system"),
-                subtitle=_("The boot partitions do not match any stored set."),
+                subtitle=_("The boot partitions hold images that are not saved, such as a new kernel. "
+                           "Restart Linux once and it saves them by itself."),
             )
             row.add_prefix(Gtk.Image(icon_name="dialog-warning-symbolic"))
             self.boot_systems.add(row)
@@ -684,7 +687,7 @@ class CompanionWindow(Adw.ApplicationWindow):
         # rest of the list is then plainly "where else can I go".
         for entry in sorted(sets, key=lambda e: e["id"] != current):
             row = Adw.ActionRow(title=entry["label"])
-            row.add_prefix(Gtk.Image(icon_name=self._icon_for(entry["id"])))
+            row.add_prefix(Gtk.Image(icon_name=self._icon_for(entry)))
 
             if entry["id"] == current:
                 row.set_subtitle(_("In use now"))
@@ -713,9 +716,10 @@ class CompanionWindow(Adw.ApplicationWindow):
         return False
 
     @staticmethod
-    def _icon_for(set_id):
-        return ("computer-symbolic" if "ubuntu" in set_id.lower()
-                else "phone-symbolic")
+    def _icon_for(entry):
+        # Older helpers report no kind; their Linux set was always "ubuntu".
+        kind = entry.get("kind") or ("linux" if "ubuntu" in entry["id"].lower() else "android")
+        return "computer-symbolic" if kind == "linux" else "phone-symbolic"
 
     def _boot_switch_clicked(self, button, set_id):
         button.set_sensitive(False)
@@ -724,7 +728,7 @@ class CompanionWindow(Adw.ApplicationWindow):
         boot_sets.switch(set_id, True, self._boot_progress, self._boot_finished)
 
     def _boot_progress(self, event):
-        self.boot_progress_label.set_text(event.get("message", ""))
+        self.boot_progress_label.set_text(boot_sets.describe(event))
         return False
 
     def _boot_finished(self, ok):

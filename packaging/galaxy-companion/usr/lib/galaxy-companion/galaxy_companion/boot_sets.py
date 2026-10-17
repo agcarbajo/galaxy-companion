@@ -14,11 +14,42 @@ import threading
 from gi.repository import GLib
 
 from . import device
+from .i18n import N_, _
 
 
 STATUS_HELPER = "/usr/libexec/galaxy-companion-boot-status"
 SWITCH_HELPER = "/usr/libexec/galaxy-companion-boot-switch"
 NOASK_HELPER = "/usr/libexec/galaxy-companion-boot-noask"
+
+
+# What galaxy-companion-boot-switch reports, by code (see boot_core.MESSAGES).
+MESSAGES = {
+    "writing": N_("Writing {part}…"),
+    "verified": N_("{part} verified."),
+    "written": N_("The boot partitions are written."),
+    "rebooting": N_("Restarting…"),
+    "incomplete": N_("That system's saved images are missing or incomplete."),
+    "partitions-missing": N_("The boot partitions cannot be read."),
+    "unsaved": N_("{parts} hold images that are not saved anywhere, such as a new kernel. "
+                  "Restart Linux once so it saves them, then switch."),
+    "write-failed": N_("Could not write {part}: {detail}"),
+    "mismatch": N_("{part} does not match when read back. Do not restart: check it first."),
+    "busy": N_("An update or a system switch is already running."),
+    "update-pending": N_("Install or cancel the prepared update before switching systems."),
+}
+
+
+def describe(event):
+    """An event from the switch helper, in the reader's language."""
+    template = MESSAGES.get(event.get("code"))
+    if template is None:
+        return event.get("message", "")
+    values = {key: ", ".join(value) if isinstance(value, list) else str(value)
+              for key, value in event.items()}
+    try:
+        return _(template).format(**values)
+    except (KeyError, IndexError):
+        return event.get("message", "")
 
 
 def available():

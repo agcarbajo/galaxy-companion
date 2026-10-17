@@ -9,8 +9,10 @@ asks for one.
 
 import json
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/usr/lib/galaxy-companion")
+# Installed: /usr/libexec next to /usr/lib/galaxy-companion; same from a checkout.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib" / "galaxy-companion"))
 
 from galaxy_companion import boot_core  # noqa: E402
 
