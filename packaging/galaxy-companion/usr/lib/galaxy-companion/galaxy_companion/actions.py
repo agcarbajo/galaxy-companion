@@ -44,9 +44,9 @@ _SHARED = (
     Action("volume-up", N_("Volume up"), "audio-volume-high-symbolic"),
     Action("volume-down", N_("Volume down"), "audio-volume-low-symbolic"),
     Action("mute", N_("Mute"), "audio-volume-muted-symbolic"),
-    # The icon ships with the device port that ships the torch helper.
+    # Galaxy Companion's torch icon, unless the profile names the port's own.
     Action("flashlight", N_("Toggle the flashlight"),
-           device.current().flashlight.get("icon", "camera-flash-symbolic")),
+           device.current().flashlight.get("icon", "galaxy-companion-flashlight-symbolic")),
     Action("command", N_("Run a command"), "utilities-terminal-symbolic"),
 )
 

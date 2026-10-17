@@ -182,7 +182,8 @@ another) whose brightness the video group may write
 `galaxy-companion-flashlight on [1-255]|off|toggle|status|path`, the
 "Toggle the flashlight" button action, and a Quick Settings toggle with a
 brightness slider (`flashlight@agcarbajo.github.io`, enabled once at login;
-the brightness is in `io.github.agcarbajo.GalaxyCompanion.Flashlight`). A
+the brightness is in `io.github.agcarbajo.GalaxyCompanion.Flashlight`). Its
+icon, `galaxy-companion-flashlight-symbolic`, is the Tab S9 Ultra port's. A
 port that has its own tile names its `helper` and `schema` instead, and the
 Galaxy Companion tile is then not enabled (the Tab S9 Ultra).
 

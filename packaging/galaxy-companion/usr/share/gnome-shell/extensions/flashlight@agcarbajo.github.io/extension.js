@@ -20,7 +20,8 @@ import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 
 const HELPER = '/usr/libexec/galaxy-companion-flashlight';
 const SCHEMA = 'io.github.agcarbajo.GalaxyCompanion.Flashlight';
-const ICON = 'camera-flash-symbolic';
+// The Tab S9 Ultra port's torch icon, shipped by Galaxy Companion.
+const ICON = 'galaxy-companion-flashlight-symbolic';
 
 // The same built-in catalogue the app uses (see the dual boot extension).
 const CATALOGUE = {
