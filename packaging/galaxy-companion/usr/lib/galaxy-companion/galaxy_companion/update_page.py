@@ -13,6 +13,7 @@ from . import update_monitor
 from .release_markdown import markup
 from .update_core import status
 from .i18n import _
+from .device import current as current_device
 
 
 def size_label(value):
@@ -134,6 +135,15 @@ class UpdatePage(Adw.PreferencesPage):
         row.add_suffix(self.local)
         row.set_activatable_widget(self.local)
         other.add(row)
+        self.previous_system = current_device().updates.get("previous_system", {})
+        self.previous_row = Adw.ActionRow(title=_("Remove previous installation"), visible=False)
+        self.previous_row.add_prefix(Gtk.Image(icon_name="user-trash-symbolic"))
+        self.previous_remove = Gtk.Button(label=_("Remove…"), valign=Gtk.Align.CENTER,
+                                         css_classes=["destructive-action"])
+        self.previous_remove.connect("clicked", self._remove_previous)
+        self.previous_row.add_suffix(self.previous_remove)
+        other.add(self.previous_row)
+        self._load_previous()
         details_group = Adw.PreferencesGroup()
         self.add(details_group)
         self.details = Adw.ExpanderRow(title=_("Technical details"), visible=False)
@@ -147,6 +157,60 @@ class UpdatePage(Adw.PreferencesPage):
         self._restore_status()
         self.connect("map", self._mapped)
         self.connect("unmap", lambda *_: (self._stop_pulse(), self._cancel_hold()))
+
+    def _load_previous(self):
+        try:
+            file = Path(self.previous_system["status_file"])
+            info = json.loads(file.read_text())
+            available = bool(info.get("available")) and Path(self.previous_system["helper"]).is_file()
+            self.previous_bytes = max(0, int(info.get("bytes", 0)))
+        except (KeyError, OSError, ValueError, TypeError):
+            available = False
+        self.previous_row.set_visible(available)
+        if available:
+            self.previous_row.set_subtitle(_("Previous installation: {size}. Automatically removed after seven days of healthy use.").format(
+                size=size_label(self.previous_bytes)))
+        self.previous_remove.set_sensitive(not self.busy)
+
+    def _remove_previous(self, *_args):
+        if self.busy:
+            return
+        dialog = Adw.MessageDialog(transient_for=self.window, modal=True,
+            heading=_("Remove the previous installation?"),
+            body=_("This frees {size} and removes the option to return to the previous Ubuntu installation. Your current system and home folder are preserved.").format(
+                size=size_label(self.previous_bytes)))
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("remove", _("Remove previous installation"))
+        dialog.set_response_appearance("remove", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        def respond(_dialog, response):
+            if response != "remove" or self.busy:
+                return
+            self.busy = True
+            self._refresh()
+            self.previous_remove.set_sensitive(False)
+            def worker():
+                try:
+                    result = subprocess.run(["pkexec", self.previous_system["helper"], "--cleanup"],
+                        capture_output=True, text=True, check=True)
+                    error = None
+                except Exception as exc:
+                    error = str(exc)
+                GLib.idle_add(self._previous_removed, error)
+            threading.Thread(target=worker, daemon=True).start()
+        dialog.connect("response", respond)
+        dialog.present()
+
+    def _previous_removed(self, error):
+        self.busy = False
+        self._refresh()
+        self._load_previous()
+        if error:
+            dialog = Adw.MessageDialog(transient_for=self.window, modal=True,
+                heading=_("Could not remove the previous installation"), body=error)
+            dialog.add_response("close", _("Close"))
+            dialog.present()
+        return False
 
     @staticmethod
     def _notes_label():
@@ -193,6 +257,7 @@ class UpdatePage(Adw.PreferencesPage):
         return False
 
     def _mapped(self, *_args):
+        self._load_previous()
         if not self.checked and not self.busy and status().get("state") not in ("ready", "failed"):
             self._check()
         elif self.busy and self.stage not in ("download", "copy"):
@@ -234,6 +299,7 @@ class UpdatePage(Adw.PreferencesPage):
         self.cancel.set_visible(ready)
         self.restart.set_sensitive(not self.busy)
         self.cancel.set_sensitive(not self.busy)
+        self.previous_remove.set_sensitive(not self.busy and not ready)
 
     def _restore_status(self):
         state = status()

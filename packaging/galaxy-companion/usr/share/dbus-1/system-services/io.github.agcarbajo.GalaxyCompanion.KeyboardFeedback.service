@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=io.github.agcarbajo.GalaxyCompanion.KeyboardFeedback
+Exec=/usr/libexec/galaxy-companion-keyboard-feedback
+User=root
+SystemdService=galaxy-companion-keyboard-feedback.service

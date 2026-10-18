@@ -1372,13 +1372,15 @@ class CompanionWindow(Adw.ApplicationWindow):
                 _("Hardware enablement"),
                 [port["name"] + (" " + port["website"] if port.get("website") else "")],
             )
-        about.add_credit_section(
-            _("Air pointer inspiration"),
-            ["PenMouse S — Jakub J (@jojczak)"],
-        )
-        about.add_link(
-            _("PenMouse S on GitHub"),
-            "https://github.com/jojczak/PenMouseS",
-        )
-        add_keyboard_diagnostics(about)
+        if self.device.has("spen-remote"):
+            about.add_credit_section(
+                _("Air pointer inspiration"),
+                ["PenMouse S — Jakub J (@jojczak)"],
+            )
+            about.add_link(
+                _("PenMouse S on GitHub"),
+                "https://github.com/jojczak/PenMouseS",
+            )
+        if self.device.has("keyboard-cover"):
+            add_keyboard_diagnostics(about)
         about.present()

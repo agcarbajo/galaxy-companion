@@ -126,6 +126,10 @@
     "noask_rule": "/etc/polkit-1/rules.d/49-gts9u-boot-switch.rules"
   },
   "updates": {
+    "previous_system": {
+      "status_file": "/var/lib/gts9u-root-maintenance/status.json",
+      "helper": "/usr/libexec/ubuntu-gts9u-root-maintenance"
+    },
     "repository": "agcarbajo/ubuntu-galaxy-tab-s9-ultra",
     "device": "gts9uwifi",
     "identity_file": "/usr/lib/gts9u-release.json",

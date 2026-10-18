@@ -586,3 +586,40 @@ dialog. Closing the preview window removes the temporary cache and restores
 normal discovery on the next launch. If the window was never opened, stop its
 transient user service `galaxy-companion-update-preview.service` to end the trial.
 Do not publish this sample as a release or insert it into the real user cache.
+
+## Ubuntu 26.04 follow-up (2026-10-18, version retained at 1.0.0)
+
+About/diagnostic links follow the detected device capabilities: cover log export
+requires a keyboard cover, and air-pointer references require S Pen remote
+support. The hardware backend publishes live S Pen readings through BlueZ's
+BatteryProvider API, removes disconnected batteries and caches inventory reads
+with topology/connection/owner invalidation. The owner confirmed the percentage
+in GNOME Energy settings. This does not claim to repair every pairing-daemon
+restart case documented above.
+
+The cover relay releases forwarded keys on read failure, disconnection and
+SYN_DROPPED, and reconciles missing releases with EVIOCGKEY while keys are held.
+Synthetic tests pass; the owner's occasional physical-cover repeat still needs
+a representative typing trial.
+
+Keyboard haptics use native Shell OSK Key pressed signals, including dynamic
+layouts, instead of stage touch hit testing (which missed lock-screen events).
+A system D-Bus broker gates the bounded motor pulse on the persisted preference
+and the active local seat, including the greeter. It never receives key text or
+identity. The owner confirmed vibration in an app and the lock screen after a
+real reboot with OSK3, package SHA-256
+c6841393a3f5ea8f33f83693835ed0e1b32e37472c32ab871b3930a5e23591c2.
+Initial GDM login and separate polkit prompt acceptance are still pending.
+
+Updates exposes previous-root cleanup only through the device's maintenance
+helper, with measured size and an explicit deletion confirmation. The port owns
+the safe-path checks, preservation policy and seven healthy-uptime-day threshold.
+No real previous installation has been removed during development.
+
+The Android APK lacked ACCESS_NETWORK_STATE: API 35 JobScheduler threw before
+the activity reached the root request. The old signed APK reproduced this in an
+emulator; the corrected APK opens with the same release signing identity.
+Selected-root boot sets now take precedence over stale shared-storage Ubuntu
+images. Physical Samsung SU permission and an Android/Ubuntu round trip remain
+pending. No version increment or ZIP regeneration is authorized for this batch.
+Release notes use short primary-feature bullets rather than long paragraphs.

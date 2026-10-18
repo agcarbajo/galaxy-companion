@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: MIT
 ES = {
+    "Remove previous installation": "Eliminar instalación anterior",
+    "Remove…": "Eliminar…",
+    "Previous installation: {size}. Automatically removed after seven days of healthy use.": "Instalación anterior: {size}. Se elimina automáticamente tras siete días de uso estable.",
+    "Remove the previous installation?": "¿Eliminar la instalación anterior?",
+    "This frees {size} and removes the option to return to the previous Ubuntu installation. Your current system and home folder are preserved.": "Liberarás {size} y perderás la opción de volver a la instalación anterior de Ubuntu. Se conservan el sistema actual y tu carpeta personal.",
+    "Could not remove the previous installation": "No se ha podido eliminar la instalación anterior",
     "Check for updates weekly": "Buscar actualizaciones cada semana",
     "Notify me when a new build is available.": "Avisarme cuando haya una nueva versión disponible.",
     "Update available": "Actualización disponible",

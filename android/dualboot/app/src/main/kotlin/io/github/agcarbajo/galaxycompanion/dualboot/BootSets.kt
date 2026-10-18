@@ -196,6 +196,25 @@ object BootSets {
                 .forEach { where[it] = base }
         }
 
+        // A distribution migration retains the original filesystem root.
+        // Its selected Linux set takes precedence over old manually copied
+        // /sdcard Ubuntu images. Android's own set keeps its usual priority.
+        val marker = "$LINUX_MOUNT/.gts9u-root"
+        val selected = readLine(marker, "selected")
+        if (selected != null && selected.matches(Regex("[a-f0-9]{32}"))) {
+            val slot = "$marker/slots/$selected"
+            if (readLine(slot, "result") == "accepted") {
+                val base = "$slot/root${profile!!.setsDir}"
+                Root.run("ls -1 $base 2>/dev/null || true").output.lineSequence()
+                    .map { it.trim() }
+                    .filter { it.matches(Regex("[A-Za-z0-9_-]{1,40}")) }
+                    .filter { id ->
+                        (readLine("$base/$id", "kind") ?: kindFromId(id)) == LINUX
+                    }
+                    .forEach { where[it] = base }
+            }
+        }
+
         return where.keys.sorted().map { id ->
             val dir = "${where[id]}/$id"
             val fallback = KNOWN_LABELS[id.lowercase()] ?: id.replaceFirstChar { it.uppercase() }

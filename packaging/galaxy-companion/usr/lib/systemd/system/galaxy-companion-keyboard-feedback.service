@@ -1,0 +1,15 @@
+[Unit]
+Description=Galaxy Companion keyboard feedback for the active local user or greeter
+
+[Service]
+Type=dbus
+BusName=io.github.agcarbajo.GalaxyCompanion.KeyboardFeedback
+ExecStart=/usr/libexec/galaxy-companion-keyboard-feedback
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+StateDirectory=galaxy-companion
+ReadWritePaths=/var/lib/galaxy-companion
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=

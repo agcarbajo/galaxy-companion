@@ -22,9 +22,13 @@
   <releases>
     <release version="1.0.0" date="2026-10-18" type="stable">
       <description>
-        <p>First stable release of Galaxy Companion and the signed Dualboot Android app. Device profiles select the available settings, with support for the Galaxy Tab S9 Ultra and Galaxy S9+.</p>
-        <p>Includes the latest flashlight, desktop-language and version-display fixes. The S Pen dock popup now starts on GNOME 50 while retaining GNOME 46 behavior. The Galaxy S9+ no longer offers fingerprint settings without a supported reader.</p>
-        <p>Local and published port updates preserve their authenticated handoff to the release migration backend. The Debian package retains epoch 1 so it upgrades previous Tab Companion and pre-release Galaxy Companion installations.</p>
+        <ul>
+          <li>Galaxy Companion replaces Tab Companion, with settings adapted to each supported Galaxy device.</li>
+          <li>Signed Android Dualboot app, with corrected startup and selection of the migrated Ubuntu installation.</li>
+          <li>Ubuntu release upgrades and an option to remove the previous installation and reclaim its space.</li>
+          <li>Live S Pen battery integration with GNOME and fewer background Bluetooth queries.</li>
+          <li>GNOME 50 compatibility and fixes for the flashlight, language selection and keyboard cover.</li>
+        </ul>
       </description>
     </release>
     <release version="0.9.0" date="2026-10-17" type="development">

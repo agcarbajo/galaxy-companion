@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Bounded vibration pulses for the active local Shell, including GDM.
+
+The greeter does not have the user's session bus or their input-device access.
+No key codes, text, passwords or authentication results cross this interface.
+"""
+from pathlib import Path
+import runpy
+import sys
+import time
+import dbus
+import dbus.service
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GLib
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'lib/galaxy-companion'))
+from galaxy_companion.keyboard_feedback import Preferences, local_caller
+
+NAME = 'io.github.agcarbajo.GalaxyCompanion.KeyboardFeedback'
+PATH = '/io/github/agcarbajo/GalaxyCompanion/KeyboardFeedback'
+
+
+def main():
+    DBusGMainLoop(set_as_default=True)
+    bus = dbus.SystemBus()
+    name = dbus.service.BusName(NAME, bus, do_not_queue=True)
+    daemon = dbus.Interface(bus.get_object('org.freedesktop.DBus', '/org/freedesktop/DBus'), 'org.freedesktop.DBus')
+    preferences = Preferences('/var/lib/galaxy-companion/keyboard-feedback.json')
+
+    class Feedback(dbus.service.Object):
+        def __init__(self):
+            super().__init__(name, PATH)
+            self.motor = None
+            self.last_pulse = 0
+
+        def caller(self, sender):
+            uid = int(daemon.GetConnectionUnixUser(sender, timeout=1))
+            seat = dbus.Interface(bus.get_object('org.freedesktop.login1',
+                '/org/freedesktop/login1/seat/seat0', introspect=False), 'org.freedesktop.DBus.Properties')
+            session, path = seat.Get('org.freedesktop.login1.Seat', 'ActiveSession', timeout=1)
+            if not session:
+                return uid, {}
+            props = dbus.Interface(bus.get_object('org.freedesktop.login1', path, introspect=False),
+                'org.freedesktop.DBus.Properties').GetAll('org.freedesktop.login1.Session', timeout=1)
+            return uid, props
+
+        @dbus.service.method(NAME, in_signature='bu', out_signature='', sender_keyword='sender')
+        def SetPreferences(self, enabled, strength, sender=None):
+            uid, props = self.caller(sender)
+            if not local_caller(uid, props):
+                raise dbus.exceptions.DBusException('Only the active local user may change keyboard feedback',
+                    name=NAME + '.NotActiveSession')
+            preferences.set(uid, enabled, strength)
+
+        @dbus.service.method(NAME, in_signature='', out_signature='b', sender_keyword='sender')
+        def Vibrate(self, sender=None):
+            uid, props = self.caller(sender)
+            duration = preferences.duration(uid, props)
+            now = time.monotonic()
+            if not duration or now - self.last_pulse < 0.015:
+                return False
+            self.last_pulse = now
+            if self.motor is None or not self.motor.available:
+                # Share the same tested FF_RUMBLE implementation as the user
+                # hardware service. Loading the module never starts its daemon.
+                motor = runpy.run_path('/usr/libexec/galaxy-companion-hardware')['ForceFeedback']
+                self.motor = motor()
+            return self.motor.vibrate(duration, 65535)
+
+    feedback = Feedback()
+    GLib.MainLoop().run()
+    return feedback
+
+
+if __name__ == '__main__':
+    main()

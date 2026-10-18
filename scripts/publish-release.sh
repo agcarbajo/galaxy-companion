@@ -38,7 +38,11 @@ notes=$(python3 - "$repo/packaging/galaxy-companion/usr/share/metainfo/io.github
 import sys, xml.etree.ElementTree as ET
 for release in ET.parse(sys.argv[1]).iter("release"):
     if release.get("version") == sys.argv[2]:
-        print(" ".join(p.text or "" for p in release.iter("p")))
+        items = [" ".join("".join(item.itertext()).split()) for item in release.iter("li")]
+        if items:
+            print("\n".join("- " + item for item in items))
+        else:
+            print("\n\n".join("".join(p.itertext()).strip() for p in release.iter("p")))
 PY
 )
 "$gh" release create "v$version" "$out/$deb" "$out/$apk" "$out/SHA256SUMS" \

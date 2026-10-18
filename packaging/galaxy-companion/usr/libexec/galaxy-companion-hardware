@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/galaxy-comp
 from galaxy_companion import device as device_profile  # noqa: E402
 from galaxy_companion import led_rules  # noqa: E402
 from galaxy_companion.led_engine import LedEngine, notification_sources  # noqa: E402
+from galaxy_companion.spen_battery import PenBattery  # noqa: E402
 
 DEVICE = device_profile.current()
 
@@ -524,6 +525,8 @@ class HardwareService:
         self.pen_option_errors = set()
         self.keyboard_fd = None
         self.keyboard_watch = None
+        self.keyboard_forwarded = set()
+        self.keyboard_dropped = False
         self.pen_fd = None
         self.pen_watch = None
         self.pen_in_proximity = False
@@ -543,6 +546,7 @@ class HardwareService:
         self.pointer_gravity_z = None
         self.virtual_watch = None
         self.system_bus = None
+        self.spen_battery = None
         self.bluez_manager = None
         self.ble_device_path = None
         self.ble_paired = False
@@ -689,10 +693,18 @@ class HardwareService:
             return
         try:
             self.system_bus = dbus.SystemBus()
+            self.spen_battery = PenBattery(self.system_bus)
             self.bluez_manager = dbus.Interface(
                 self.system_bus.get_object(BLUEZ, "/"),
                 "org.freedesktop.DBus.ObjectManager",
             )
+            for signal in ("InterfacesAdded", "InterfacesRemoved"):
+                self.system_bus.add_signal_receiver(self._bluez_inventory_changed,
+                    bus_name=BLUEZ, dbus_interface="org.freedesktop.DBus.ObjectManager",
+                    signal_name=signal)
+            self.system_bus.add_signal_receiver(self._bluez_inventory_changed,
+                dbus_interface="org.freedesktop.DBus", signal_name="NameOwnerChanged",
+                arg0=BLUEZ)
             self.system_bus.add_signal_receiver(
                 self._bluez_properties_changed,
                 dbus_interface=DBUS_PROPERTIES,
@@ -740,17 +752,24 @@ class HardwareService:
         if self.bluez_manager is None:
             self._set_bluetooth_powered(False)
             return {}
-        try:
-            objects = self.bluez_manager.GetManagedObjects()
-        except dbus.DBusException:
-            self._set_bluetooth_powered(False)
-            return {}
+        objects = getattr(self, "bluez_inventory", None)
+        if objects is None or time.monotonic() >= getattr(self, "bluez_inventory_until", 0):
+            try:
+                objects = self.bluez_manager.GetManagedObjects()
+            except dbus.DBusException:
+                self._set_bluetooth_powered(False)
+                return {}
+            self.bluez_inventory = objects
+            self.bluez_inventory_until = time.monotonic() + 30
         self._set_bluetooth_powered(any(
             BLUEZ_ADAPTER in interfaces
             and bool(interfaces[BLUEZ_ADAPTER].get("Powered", False))
             for interfaces in objects.values()
         ))
         return objects
+
+    def _bluez_inventory_changed(self, *_args, **_kwargs):
+        self.bluez_inventory = None
 
     def _remote_enabled_changed(self, *_args):
         self.remote_synced = None
@@ -1015,6 +1034,8 @@ class HardwareService:
             self.ble_subscribed.add(path)
 
     def _ble_disconnected(self, device_path=None):
+        if getattr(self, "spen_battery", None) is not None:
+            self.spen_battery.update(None, None)
         self.ble_device_path = device_path
         self.ble_connected = False
         self.ble_characteristics = {}
@@ -1027,6 +1048,8 @@ class HardwareService:
         self.ble_next_battery_read = 0.0
 
     def _bluez_properties_changed(self, interface, changed, _invalidated, path=None):
+        if interface in (BLUEZ_ADAPTER, BLUEZ_DEVICE):
+            self._bluez_inventory_changed()
         if interface == BLUEZ_ADAPTER and "Powered" in changed:
             self._set_bluetooth_powered(changed["Powered"])
             GLib.idle_add(self.sample)
@@ -1290,6 +1313,9 @@ class HardwareService:
         )
 
     def _close_keyboard_reader(self):
+        # The virtual device outlives a disconnected cover. Without releases
+        # the compositor keeps repeating its last key indefinitely.
+        self._release_keyboard_keys()
         if self.keyboard_fd is not None:
             try:
                 fcntl.ioctl(self.keyboard_fd, EVIOCGRAB, 0)
@@ -1298,6 +1324,31 @@ class HardwareService:
             os.close(self.keyboard_fd)
             self.keyboard_fd = None
         self.keyboard_watch = None
+
+    def _release_keyboard_keys(self):
+        if self.virtual_keyboard is not None:
+            for code in getattr(self, "keyboard_forwarded", set()):
+                self.virtual_keyboard.emit(EV_KEY, code, 0)
+            self.virtual_keyboard.emit(EV_SYN, SYN_REPORT, 0)
+        self.keyboard_forwarded = set()
+        self.keyboard_dropped = False
+
+    def _reconcile_keyboard_keys(self):
+        if self.keyboard_fd is None or not self.keyboard_forwarded:
+            return
+        keys = bytearray(KEY_MAX // 8 + 1)
+        try:
+            fcntl.ioctl(self.keyboard_fd, EVIOCGKEY | (len(keys) << 16), keys, True)
+        except OSError:
+            self._close_keyboard_reader()
+            return
+        released = {code for code in self.keyboard_forwarded
+                    if not keys[code // 8] & (1 << (code % 8))}
+        for code in released:
+            self.virtual_keyboard.emit(EV_KEY, code, 0)
+        if released:
+            self.virtual_keyboard.emit(EV_SYN, SYN_REPORT, 0)
+            self.keyboard_forwarded.difference_update(released)
 
     def _ensure_pen_reader(self):
         if self.pen_fd is not None:
@@ -1351,6 +1402,14 @@ class HardwareService:
         for offset in range(0, len(data) - INPUT_EVENT.size + 1, INPUT_EVENT.size):
             event = INPUT_EVENT.unpack_from(data, offset)
             _sec, _usec, event_type, code, value = event
+            if event_type == EV_SYN and code == 3:  # SYN_DROPPED
+                self._release_keyboard_keys()
+                self.keyboard_dropped = True
+                continue
+            if self.keyboard_dropped:
+                if event_type == EV_SYN and code == SYN_REPORT:
+                    self.keyboard_dropped = False
+                continue
             suppress = False
             if event_type == EV_KEY:
                 self.keyboard_capture.record(code, value)
@@ -1367,6 +1426,11 @@ class HardwareService:
                     self._replace_dynamic(LastSpecialKey=f"{mapping}:{code}")
             if not suppress and self.virtual_keyboard is not None:
                 self.virtual_keyboard.emit(event_type, code, value)
+                if event_type == EV_KEY:
+                    if value == 1:
+                        self.keyboard_forwarded.add(code)
+                    elif value == 0:
+                        self.keyboard_forwarded.discard(code)
         return GLib.SOURCE_CONTINUE
 
     def _mapping_for_code(self, code):
@@ -1674,9 +1738,13 @@ class HardwareService:
         objects = self._refresh_bluetooth_powered()
         self._sync_remote_control()
         self._ensure_keyboard_reader()
+        self._reconcile_keyboard_keys()
         self._ensure_pen_reader()
         self._ensure_bixby_reader()
         self._refresh_spen_ble(objects)
+        if self.spen_battery is not None:
+            self.spen_battery.update(self.ble_device_path if self.ble_connected else None,
+                                     self.ble_battery if self.ble_battery_valid else None)
         if not self.haptics.available and int(time.monotonic()) % 5 == 0:
             self.haptics = ForceFeedback()
         docked = self.wacom is not None and read_text(self.wacom / PEN_DOCK_ATTRIBUTE) == "1"

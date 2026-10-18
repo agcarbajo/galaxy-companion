@@ -39,7 +39,8 @@ service.pairing = False
 service.repairing_bond = True
 consider(service, '/old-pen', {'Paired':True, 'Connected':False, 'Trusted':True})
 assert service.repairing_bond is True
-ns={'dbus':SimpleNamespace(DBusException=RuntimeError),'BLUEZ_ADAPTER':'adapter','BLUEZ_DEVICE':'device'}
+ns={'dbus':SimpleNamespace(DBusException=RuntimeError),'BLUEZ_ADAPTER':'adapter','BLUEZ_DEVICE':'device',
+    'time': SimpleNamespace(monotonic=lambda: 10)}
 powered=method('galaxy-companion-hardware','_refresh_bluetooth_powered',ns)
 ble=method('galaxy-companion-hardware','_refresh_spen_ble',ns)
 manager=Mock();manager.GetManagedObjects.return_value={}
@@ -47,8 +48,14 @@ service=SimpleNamespace(bluez_manager=manager,_set_bluetooth_powered=Mock(),_rem
 snapshot=powered(service)
 ble(service,snapshot)
 assert manager.GetManagedObjects.call_count==1
+powered(service)
+assert manager.GetManagedObjects.call_count==1, 'An unchanged inventory must be reused'
+invalidate=method('galaxy-companion-hardware','_bluez_inventory_changed',ns)
+invalidate(service)
+powered(service)
+assert manager.GetManagedObjects.call_count==2, 'New/removed devices must refresh immediately'
 ble(service)
-assert manager.GetManagedObjects.call_count==2
+assert manager.GetManagedObjects.call_count==3
 pairing_tree=ast.parse((helpers/'galaxy-companion-spen-pairing').read_text())
 remote=next(n for n in ast.walk(pairing_tree) if isinstance(n,ast.FunctionDef) and n.name=='SetRemoteEnabled')
 assert any(isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='idle_add' and n.args and isinstance(n.args[0],ast.Attribute) and n.args[0].attr=='tick_once' for n in ast.walk(remote))
