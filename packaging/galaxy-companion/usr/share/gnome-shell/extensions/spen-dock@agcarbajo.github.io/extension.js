@@ -183,7 +183,9 @@ export default class SPenDockExtension extends Extension {
         this._popup = new SPenDockPopup();
         this._popup.opacity = 0;
         this._popup.visible = false;
-        Main.layoutManager.addTopChrome(this._popup, {affectsInputRegion: true});
+        // Input-reactive chrome is already the GNOME 46 default. GNOME 50
+        // removed affectsInputRegion, so passing it prevents enable().
+        Main.layoutManager.addTopChrome(this._popup);
         this._popup.connect('dismissed', () => this._hide());
 
         this._proxy = Gio.DBusProxy.new_for_bus_sync(
