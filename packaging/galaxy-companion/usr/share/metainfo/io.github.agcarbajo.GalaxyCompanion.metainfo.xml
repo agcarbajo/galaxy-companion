@@ -20,14 +20,14 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
-    <release version="1.0.0" date="2026-10-18" type="stable">
+    <release version="1.0.0" date="2026-10-19" type="stable">
       <description>
         <ul>
-          <li>Galaxy Companion replaces Tab Companion, with settings adapted to each supported Galaxy device.</li>
-          <li>Signed Android Dualboot app, with corrected startup and selection of the migrated Ubuntu installation.</li>
-          <li>Ubuntu release upgrades and an option to remove the previous installation and reclaim its space.</li>
-          <li>Live S Pen battery integration with GNOME and fewer background Bluetooth queries.</li>
-          <li>GNOME 50 compatibility and fixes for the flashlight, language selection and keyboard cover.</li>
+          <li>First stable Galaxy Companion, with settings adapted to each Galaxy device.</li>
+          <li>New Android Dualboot app with corrected startup and Ubuntu 26 selection.</li>
+          <li>Ubuntu upgrades and previous-installation cleanup.</li>
+          <li>S Pen battery in GNOME and keyboard vibration at login and on the lock screen.</li>
+          <li>GNOME 50 support and keyboard-cover and Bluetooth fixes.</li>
         </ul>
       </description>
     </release>

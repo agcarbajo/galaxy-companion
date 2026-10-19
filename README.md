@@ -23,6 +23,12 @@ into either system from the other. Each system saves its own boot partitions:
 after installing Linux, start it once, then open the app on Android. See
 [docs/dual-boot.md](docs/dual-boot.md).
 
+Download the [Android Dualboot 1.0.0 APK](https://github.com/agcarbajo/galaxy-companion/releases/download/v1.0.0/galaxy-companion-dualboot_1.0.0.apk).
+**Uninstall the old Dualboot app first**, then install this APK and grant root.
+Removing the old app does not remove Ubuntu or its files. For the Tab S9 Ultra's
+Ubuntu 24.04 upgrade, follow the [port's update guide](https://github.com/agcarbajo/ubuntu-galaxy-tab-s9-ultra#updating-an-existing-installation).
+
+
 ## Updates
 
 Galaxy Companion updates itself from this repository's releases, separately
