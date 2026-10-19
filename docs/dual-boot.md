@@ -58,7 +58,9 @@ root filesystem:
 Linux's root filesystem is the only place both systems can reach: Android's
 `/data` is encrypted, but Android with root can mount Linux's ext4 partition.
 Sets saved by hand under `/sdcard/BootSets/<id>/` on Android are also read
-there, and win over the saved one.
+there and normally take precedence. An accepted migrated Linux installation
+takes precedence over stale Linux sets from shared storage; Android sets keep
+their normal precedence.
 
 Nobody types the images in. Each system saves its own:
 

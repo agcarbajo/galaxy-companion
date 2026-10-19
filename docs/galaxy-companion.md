@@ -609,7 +609,8 @@ and the active local seat, including the greeter. It never receives key text or
 identity. The owner confirmed vibration in an app and the lock screen after a
 real reboot with OSK3, package SHA-256
 c6841393a3f5ea8f33f83693835ed0e1b32e37472c32ab871b3930a5e23591c2.
-Initial GDM login and separate polkit prompt acceptance are still pending.
+The owner subsequently confirmed vibration at initial GDM login and in a
+separate administrator authentication prompt too (2026-10-19).
 
 Updates exposes previous-root cleanup only through the device's maintenance
 helper, with measured size and an explicit deletion confirmation. The port owns
@@ -620,6 +621,9 @@ The Android APK lacked ACCESS_NETWORK_STATE: API 35 JobScheduler threw before
 the activity reached the root request. The old signed APK reproduced this in an
 emulator; the corrected APK opens with the same release signing identity.
 Selected-root boot sets now take precedence over stale shared-storage Ubuntu
-images. Physical Samsung SU permission and an Android/Ubuntu round trip remain
-pending. No version increment or ZIP regeneration is authorized for this batch.
+images. On 2026-10-19 the corrected APK was installed on SM-X910 / Android 16,
+ACCESS_NETWORK_STATE was granted, the owner granted SU, and the app remained
+open without an app crash. Its UI showed One UI 8 and Ubuntu 26.04.1; the owner
+used it to return successfully to Ubuntu 26.04.1 (boot
+05f763e4-ebb0-42de-ba2c-a5efce2b8675). No version increment or ZIP regeneration is authorized for this batch.
 Release notes use short primary-feature bullets rather than long paragraphs.
