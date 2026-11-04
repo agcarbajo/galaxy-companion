@@ -1,0 +1,16 @@
+name: Companion regressions and package
+on:
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run the existing headless suite and build the Debian package
+        run: bash ci/run-tests.sh

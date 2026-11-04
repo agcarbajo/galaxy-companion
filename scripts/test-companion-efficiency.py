@@ -66,6 +66,24 @@ assert tick_once(service) is False
 service.tick.assert_called_once_with()
 print('PASS: one snapshot per sample, event refresh remains live, trust writes only when needed, idle tick stops')
 
+# sample() returns SOURCE_CONTINUE for its one-second timer. Using that same
+# return value for idle_add would reschedule it immediately forever.
+glib = SimpleNamespace(SOURCE_REMOVE=False, idle_add=Mock())
+sample_ns = {'GLib': glib, 'BLUEZ_ADAPTER': 'adapter', 'BLUEZ_DEVICE': 'device',
+             'BLUEZ_GATT': 'gatt'}
+sample_once = method('galaxy-companion-hardware', 'sample_once', sample_ns)
+changed = method('galaxy-companion-hardware', '_bluez_properties_changed', sample_ns)
+service = SimpleNamespace(_bluez_inventory_changed=Mock(),
+                          _set_bluetooth_powered=Mock(), sample=Mock(return_value=True))
+service.sample_once = lambda: sample_once(service)
+for powered_value in (True, False, True):
+    changed(service, 'adapter', {'Powered': powered_value}, [])
+    callback = glib.idle_add.call_args.args[0]
+    assert callback() is False, 'A Bluetooth property change must schedule a one-shot sample'
+assert service.sample.call_count == 3
+assert glib.idle_add.call_count == 3
+print('PASS: Bluetooth toggles schedule one sample each without an immortal idle source')
+
 clock = SimpleNamespace(SOURCE_CONTINUE=True, SOURCE_REMOVE=False, IO_HUP=2, IO_ERR=4,
                         IO_IN=1, timeout_add=Mock(side_effect=range(1, 100)),
                         source_remove=Mock(), io_add_watch=Mock())

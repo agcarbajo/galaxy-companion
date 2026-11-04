@@ -1052,7 +1052,7 @@ class HardwareService:
             self._bluez_inventory_changed()
         if interface == BLUEZ_ADAPTER and "Powered" in changed:
             self._set_bluetooth_powered(changed["Powered"])
-            GLib.idle_add(self.sample)
+            GLib.idle_add(self.sample_once)
             return
         if interface == BLUEZ_DEVICE and path == self.ble_device_path:
             if changed.get("Connected") is not None and not changed["Connected"]:
@@ -1730,6 +1730,10 @@ class HardwareService:
         values = {field.name: getattr(self.state, field.name) for field in fields(State)}
         values.update(changes)
         self._publish(State(**values))
+
+    def sample_once(self):
+        self.sample()
+        return GLib.SOURCE_REMOVE
 
     def sample(self):
         if self.wacom is None:
