@@ -3,6 +3,8 @@
 Native GNOME settings application for Samsung Galaxy phones and tablets running a
 mainline Linux kernel, with Ubuntu and GNOME as the first target.
 
+<img width="1082" height="882" alt="image" src="https://github.com/user-attachments/assets/aad82912-213a-44b0-af1f-35359322b405" />
+
 It shows a page for each piece of hardware the device has (S Pen, keyboard cover,
 vibration motor, fingerprint reader, status LED, dual boot, system updates), a
 home page with the device name, model, processor and memory, and other options
