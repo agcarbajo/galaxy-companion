@@ -20,6 +20,11 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
+    <release version="1.0.1" date="2026-11-03" type="development">
+      <description>
+        <p>Stop Bluetooth property changes from creating a repeating idle sample, and restart S Pen pairing together with bluetoothd.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-10-19" type="stable">
       <description>
         <ul>
