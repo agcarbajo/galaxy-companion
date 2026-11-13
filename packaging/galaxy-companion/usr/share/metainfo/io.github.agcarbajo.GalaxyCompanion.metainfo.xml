@@ -20,9 +20,14 @@
   <url type="homepage">https://github.com/agcarbajo/galaxy-companion</url>
   <url type="bugtracker">https://github.com/agcarbajo/galaxy-companion/issues</url>
   <releases>
-    <release version="1.0.1" date="2026-11-03" type="development">
+    <release version="1.0.1" date="2026-11-13" type="development">
       <description>
-        <p>Stop Bluetooth property changes from creating a repeating idle sample, and restart S Pen pairing together with bluetoothd.</p>
+        <ul>
+          <li>Check for updates again when a release carries no SHA256SUMS.</li>
+          <li>Show the docked S Pen panel as a card instead of a banner across the screen.</li>
+          <li>Stop Bluetooth property changes from creating a repeating idle sample.</li>
+          <li>Restart S Pen pairing together with bluetoothd.</li>
+        </ul>
       </description>
     </release>
     <release version="1.0.0" date="2026-10-19" type="stable">

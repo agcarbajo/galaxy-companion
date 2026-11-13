@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: MIT
 """Home page facts, Galaxy Companion's own updater, and the narrow-window menu."""
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "packaging/galaxy-companion/usr/lib/galaxy-companion"
@@ -19,9 +20,12 @@ from galaxy_companion import app_update, system_summary  # noqa: E402
 DIGEST = "a" * 64
 
 
-def release(*names, size=1000):
+def release(*names, size=1000, digest=None):
+    asset = {"size": size}
+    if digest is not None:
+        asset["digest"] = digest
     return {"tag_name": "v2.2.0", "body": "Notes", "html_url": "https://github.com/x",
-            "assets": [{"name": name, "size": size, "browser_download_url": f"https://example.invalid/{name}"}
+            "assets": [dict(asset, name=name, browser_download_url=f"https://example.invalid/{name}")
                        for name in names]}
 
 
@@ -47,6 +51,33 @@ class ReleaseTests(unittest.TestCase):
         info = app_update.parse_release(release("galaxy-companion_2.2.0_all.deb", "SHA256SUMS"),
                                         f"{DIGEST}  galaxy-companion_2.2.0_all.deb\n")
         self.assertEqual((info["version"], info["sha256"], info["size"]), ("2.2.0", DIGEST, 1000))
+
+    def test_release_without_sums_uses_the_digest_github_publishes(self):
+        # v1.0.0 was published by hand and carries no SHA256SUMS, so every
+        # weekly check raised and the home page read "Couldn't check for
+        # updates" on every tablet.
+        info = app_update.parse_release(
+            release("galaxy-companion_2.2.0_all.deb", digest="sha256:" + DIGEST), "")
+        self.assertEqual((info["version"], info["sha256"]), ("2.2.0", DIGEST))
+
+    def test_sums_win_over_the_published_digest(self):
+        other = "b" * 64
+        info = app_update.parse_release(
+            release("galaxy-companion_2.2.0_all.deb", "SHA256SUMS", digest="sha256:" + other),
+            f"{DIGEST}  galaxy-companion_2.2.0_all.deb\n")
+        self.assertEqual(info["sha256"], DIGEST)
+
+    def test_a_release_with_no_sha256_at_all_is_refused(self):
+        for digest in (None, "sha256:" + "z" * 64, "md5:" + DIGEST, ""):
+            with self.assertRaises(app_update.UpdateError, msg=digest):
+                app_update.parse_release(release("galaxy-companion_2.2.0_all.deb", digest=digest), "")
+
+    def test_latest_reads_no_sums_file_when_the_release_has_none(self):
+        body = json.dumps(release("galaxy-companion_2.2.0_all.deb", digest="sha256:" + DIGEST)).encode()
+        with patch.object(app_update, "_read", Mock(return_value=body)) as read:
+            info = app_update.latest()
+        self.assertEqual(info["sha256"], DIGEST)
+        self.assertEqual(read.call_count, 1)
 
     def test_release_must_list_the_package_in_sums(self):
         with self.assertRaises(app_update.UpdateError):

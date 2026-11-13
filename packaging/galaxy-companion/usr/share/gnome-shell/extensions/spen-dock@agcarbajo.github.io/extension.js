@@ -52,11 +52,16 @@ const EDGE_FOR_TRANSFORM = ['north', 'east', 'south', 'west'];
 // and the panel's background has no transparent margin to carry.  Keeping that
 // ratio is what stops the pen looking stretched.
 //
-// The wanted length does not always fit.  These are logical pixels, and this
-// panel is 1480x924 of them, so a pen this long stood up on a side edge would
-// be taller than the screen -- hence the clamp at the point of use rather than
-// a constant that only works in landscape.
-const PEN_LONG_WANTED = 1050;
+// How long the pen is drawn decides how big the whole panel is, and a fixed
+// length only suits the panel it was measured on.  1050 logical pixels of pen
+// plus its padding covered about three quarters of this tablet's 1480x924
+// logical panel, which is a banner across the screen rather than the card One
+// UI shows.  Taking a share of the edge the pen lies along keeps the same
+// proportion upright and sideways -- 1480 gives 518, 924 gives 323 -- and the
+// cap keeps it a card on a panel larger than this one.  The clamp at the point
+// of use still applies: a pen stood up on a side edge must not outgrow it.
+const PEN_LONG_FRACTION = 0.35;
+const PEN_LONG_MAX = 620;
 const PEN_ASPECT = 32 / 700;
 const PEN_MIN = 160;
 // Padding of the panel plus a little air, so the pen never touches the rounded
@@ -147,8 +152,10 @@ const SPenDockPopup = GObject.registerClass({
 
         // As long as asked for, or as long as the screen allows along the axis
         // the pen actually lies on.
+        const wanted = Math.min(PEN_LONG_MAX,
+            Math.round(available * PEN_LONG_FRACTION));
         const long = Math.max(PEN_MIN,
-            Math.min(PEN_LONG_WANTED, Math.round(available - PANEL_SLACK)));
+            Math.min(wanted, Math.round(available - PANEL_SLACK)));
         const short = Math.round(long * PEN_ASPECT);
 
         const boxW = sideways ? short : long;

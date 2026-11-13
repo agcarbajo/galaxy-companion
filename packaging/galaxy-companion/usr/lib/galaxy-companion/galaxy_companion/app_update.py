@@ -112,6 +112,25 @@ def parse_sums(text):
     return sums
 
 
+def asset_digest(asset):
+    """The SHA-256 GitHub publishes for an asset, or "".
+
+    A release carries SHA256SUMS when `scripts/publish-release.sh` makes it,
+    but one published by hand has only the files that were dragged into it --
+    and then every weekly check failed with "The latest release has no
+    SHA256SUMS", which the home page showed as "Couldn't check for updates"
+    until the release was fixed. GitHub computes a digest for every asset, so
+    there is a second source for exactly the same fact, over the same
+    authenticated HTTPS API. The downloaded package is still checked against
+    it here, and again by the root-only helper before dpkg sees it.
+    """
+    digest = str(asset.get("digest") or "")
+    prefix = "sha256:"
+    if digest.startswith(prefix) and HEX.fullmatch(digest[len(prefix):]):
+        return digest[len(prefix):]
+    return ""
+
+
 def parse_release(release, sums_text):
     """The installable package a release describes, or an UpdateError."""
     assets = {asset.get("name"): asset for asset in release.get("assets", ()) if isinstance(asset, dict)}
@@ -120,9 +139,9 @@ def parse_release(release, sums_text):
     if len(debs) != 1:
         raise UpdateError("The latest release does not carry exactly one Galaxy Companion package")
     version, asset = debs[0]
-    digest = parse_sums(sums_text).get(asset["name"])
+    digest = parse_sums(sums_text).get(asset["name"]) or asset_digest(asset)
     if not digest:
-        raise UpdateError("SHA256SUMS does not list the package")
+        raise UpdateError("The release publishes no SHA-256 for the package")
     size = int(asset.get("size") or 0)
     if not 0 < size <= MAX_DEB:
         raise UpdateError("The package has an unexpected size")
@@ -141,9 +160,10 @@ def parse_release(release, sums_text):
 def latest():
     release = json.loads(_read(API))
     sums = next((asset for asset in release.get("assets", ()) if asset.get("name") == SUMS), None)
-    if sums is None:
-        raise UpdateError("The latest release has no SHA256SUMS")
-    return parse_release(release, _read(sums["browser_download_url"]).decode("utf-8", "replace"))
+    # No SHA256SUMS is not an error any more: parse_release falls back to the
+    # digest GitHub itself publishes for the package.
+    text = _read(sums["browser_download_url"]).decode("utf-8", "replace") if sums else ""
+    return parse_release(release, text)
 
 
 def check():
