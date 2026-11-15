@@ -44,6 +44,8 @@ BACKUPS_DIR = _CONFIG.get("backups_dir", SETS_DIR.rstrip("/") + "-backups")
 # What each saved image hashed to, and the file it was (see _set_hashes).
 # Beside SETS_DIR, not inside it: the Android app reads and writes that one.
 HASH_CACHE = _CONFIG.get("hash_cache", SETS_DIR.rstrip("/") + "-hashes.json")
+# 2: the filesystem id instead of the device number in each key.
+HASH_CACHE_VERSION = 2
 
 # The rule that lets an active local session switch systems without a
 # password.  galaxy-companion-boot-noask writes and removes it; it is named here
@@ -194,9 +196,15 @@ def _file_key(path):
     set it, so a file written in place, by this system or by Android with a
     different idea of what time it is, gets another one.  A file replaced by
     a rename gets another inode as well.
+
+    The filesystem is named by its id, not by the device number: on the
+    Galaxy Tab S9 Ultra the root is the 35th partition of its disk, those get
+    their numbers in the order they are found, and that order changes from
+    one boot to the next.  A key with the device number in it forgot every
+    image whenever that happened.
     """
     info = os.stat(path)
-    return [info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+    return [os.statvfs(path).f_fsid, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns]
 
 
 def _settled(key):
@@ -215,7 +223,7 @@ def _load_hash_cache():
     try:
         with open(HASH_CACHE, "r", encoding="utf-8") as handle:
             data = json.load(handle)
-        entries = data["entries"] if data.get("version") == 1 else {}
+        entries = data["entries"] if data.get("version") == HASH_CACHE_VERSION else {}
         return {path: entry for path, entry in entries.items()
                 if isinstance(entry, dict) and isinstance(entry.get("key"), list)
                 and re.fullmatch(r"[0-9a-f]{64}", str(entry.get("sha256", "")))}
@@ -228,7 +236,7 @@ def _store_hash_cache(cache):
     temporary = f"{HASH_CACHE}.{os.getpid()}.tmp"
     try:
         with open(temporary, "w", encoding="utf-8") as handle:
-            json.dump({"version": 1, "entries": cache}, handle, sort_keys=True)
+            json.dump({"version": HASH_CACHE_VERSION, "entries": cache}, handle, sort_keys=True)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, HASH_CACHE)

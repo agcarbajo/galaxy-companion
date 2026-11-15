@@ -73,7 +73,7 @@ Nobody types the images in. Each system saves its own:
   The partitions are read and hashed at every boot, because that is the
   question being asked. The saved images are not: each one's hash is kept in
   `boot-sets-hashes.json` beside the sets, with the file it belonged to
-  (device, inode, size, modification and change time), and an image is read
+  (filesystem id, inode, size, modification and change time), and an image is read
   again only when it is no longer that file. On the Tab S9 Ultra that is the
   difference between reading about 520 MB at every boot and reading the four
   partitions. A switch never uses the remembered hashes: it reads every image

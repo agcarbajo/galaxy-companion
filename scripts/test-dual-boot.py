@@ -183,6 +183,52 @@ class DualBootTests(unittest.TestCase):
         self.assertEqual(sorted(Path(path).name for path in seen), ["boot", "dtbo"])
         self.assertEqual(self.core.status()["current"], "linux")
 
+    def test_a_device_number_that_moves_between_boots_changes_nothing(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.save("android", "android", {"boot": b"A", "dtbo": b"a"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        self.core.capture_running_linux(self.report)
+        # The next boot finds the same filesystem under another device number.
+        real = os.stat
+
+        class Renumbered:
+            def __init__(self, info):
+                self._info = info
+
+            def __getattr__(self, name):
+                value = getattr(self._info, name)
+                return value + 7 if name == "st_dev" else value
+
+        seen = self.reads()
+        os.stat = lambda path, *args, **kwargs: Renumbered(real(path, *args, **kwargs))
+        try:
+            self.assertTrue(self.core.capture_running_linux(self.report))
+        finally:
+            os.stat = real
+        self.assertEqual(self.events[-1][1], "linux-unchanged")
+        self.assertEqual(self.saved(seen), [])
+
+    def test_a_cache_from_before_the_filesystem_id_is_dropped(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        self.core.capture_running_linux(self.report)
+        cache = json.loads(Path(self.core.HASH_CACHE).read_text())
+        self.assertEqual(cache["version"], 2)
+        # What the first version wrote: same entries, a wrong hash, version 1.
+        for entry in cache["entries"].values():
+            entry["sha256"] = "0" * 64
+        cache["version"] = 1
+        Path(self.core.HASH_CACHE).write_text(json.dumps(cache))
+        seen = self.reads()
+        self.assertTrue(self.core.capture_running_linux(self.report))
+        self.assertEqual(self.events[-1][1], "linux-unchanged")
+        self.assertEqual(len(self.saved(seen)), 2)
+        self.assertEqual(json.loads(Path(self.core.HASH_CACHE).read_text())["version"], 2)
+
     def test_an_image_only_just_written_is_not_remembered(self):
         self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
         self.rig.flash("boot", b"L")
@@ -248,8 +294,8 @@ class DualBootTests(unittest.TestCase):
         self.rig.flash("boot", b"L")
         self.rig.flash("dtbo", b"l")
         self.later()
-        for damage in ("not json", "[]", '{"version": 1}', '{"version": 2, "entries": {}}',
-                       json.dumps({"version": 1, "entries": {
+        for damage in ("not json", "[]", '{"version": 2}', '{"version": 9, "entries": {}}',
+                       json.dumps({"version": 2, "entries": {
                            str(self.rig.sets / "linux/boot.img"): {"key": "x", "sha256": "0" * 64},
                            str(self.rig.sets / "linux/dtbo.img"): {"key": [1, 2, 3, 4, 5], "sha256": "zz"}}})):
             Path(self.core.HASH_CACHE).write_text(damage)
