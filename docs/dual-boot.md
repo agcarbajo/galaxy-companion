@@ -70,6 +70,15 @@ Nobody types the images in. Each system saves its own:
   ones that started this Linux. A kernel update therefore reaches the saved
   set at the next boot, and a port update refreshes it straight away. The only
   thing it refuses is overwriting the set saved as Android's.
+  The partitions are read and hashed at every boot, because that is the
+  question being asked. The saved images are not: each one's hash is kept in
+  `boot-sets-hashes.json` beside the sets, with the file it belonged to
+  (device, inode, size, modification and change time), and an image is read
+  again only when it is no longer that file. On the Tab S9 Ultra that is the
+  difference between reading about 520 MB at every boot and reading the four
+  partitions. A switch never uses the remembered hashes: it reads every image
+  it is about to write, and every image it relies on to prove that what it
+  overwrites is saved somewhere.
 - **Android**: the Dualboot app saves Android's set when the device finishes
   booting, when the app is opened or updated, and before every switch. It
   creates the set the first time and replaces it when Android changes (an OTA

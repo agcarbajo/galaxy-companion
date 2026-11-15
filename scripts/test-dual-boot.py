@@ -13,6 +13,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -144,6 +145,133 @@ class DualBootTests(unittest.TestCase):
         os.rename(self.rig.sets / "linux", self.rig.backups / "linux.previous")
         self.core.recover_interrupted()
         self.assertTrue((self.rig.sets / "linux/boot.img").exists())
+
+    def reads(self):
+        """Runs nothing; returns the list every later sha256() call is added to."""
+        seen = []
+        real = self.core.sha256
+
+        def counted(path, limit=None):
+            seen.append(str(path))
+            return real(path, limit)
+        self.core.sha256 = counted
+        return seen
+
+    def later(self, seconds=60):
+        """The same files, seen a minute on: saved images are settled by then."""
+        real = time.time_ns
+        self.core.time.time_ns = lambda: real() + seconds * 1_000_000_000
+        self.addCleanup(setattr, self.core.time, "time_ns", real)
+
+    def saved(self, seen):
+        return [path for path in seen if path.startswith(str(self.rig.sets))]
+
+    def test_saved_images_are_read_once_and_the_partitions_every_boot(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.save("android", "android", {"boot": b"A", "dtbo": b"a"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        seen = self.reads()
+        self.assertTrue(self.core.capture_running_linux(self.report))
+        self.assertEqual(len(self.saved(seen)), 4)
+        del seen[:]
+        self.assertTrue(self.core.capture_running_linux(self.report))
+        self.assertEqual(self.events[-1][1], "linux-unchanged")
+        self.assertEqual(self.saved(seen), [])
+        # The partitions themselves are what the boot is about: always read.
+        self.assertEqual(sorted(Path(path).name for path in seen), ["boot", "dtbo"])
+        self.assertEqual(self.core.status()["current"], "linux")
+
+    def test_an_image_only_just_written_is_not_remembered(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        seen = self.reads()
+        self.core.capture_running_linux(self.report)
+        del seen[:]
+        self.core.capture_running_linux(self.report)
+        self.assertEqual(len(self.saved(seen)), 2)
+
+    def test_an_image_rewritten_in_place_is_read_again(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.save("android", "android", {"boot": b"A", "dtbo": b"a"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        self.core.capture_running_linux(self.report)
+        # Android, with Linux's filesystem mounted, replaces its own kernel:
+        # same name, same size, same inode.
+        time.sleep(0.05)
+        image = self.rig.sets / "android/boot.img"
+        with open(image, "r+b") as handle:
+            handle.write(b"B" * SIZE["boot"])
+        seen = self.reads()
+        sets = {s["id"]: s for s in self.core.discover(cached=True)}
+        self.assertEqual(self.saved(seen), [str(image)])
+        self.assertEqual(sets["android"]["hashes"]["boot"], self.core.sha256(image))
+
+    def test_a_new_kernel_is_still_noticed_with_a_cache(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        self.core.capture_running_linux(self.report)
+        self.rig.flash("boot", b"K")
+        self.assertTrue(self.core.capture_running_linux(self.report))
+        self.assertEqual(self.events[-1][1], "linux-saved")
+        self.assertEqual((self.rig.sets / "linux/boot.img").read_bytes()[:1], b"K")
+        self.assertTrue(self.core.capture_running_linux(self.report))
+        self.assertEqual(self.events[-1][1], "linux-unchanged")
+
+    def test_a_switch_reads_every_image_whatever_was_remembered(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.save("android", "android", {"boot": b"A", "dtbo": b"a"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        self.core.capture_running_linux(self.report)
+        cache = json.loads(Path(self.core.HASH_CACHE).read_text())
+        self.assertEqual(len(cache["entries"]), 4)
+        # A cache that lies: it says Android's kernel is Linux's.
+        wrong = cache["entries"][str(self.rig.sets / "linux/boot.img")]["sha256"]
+        cache["entries"][str(self.rig.sets / "android/boot.img")]["sha256"] = wrong
+        Path(self.core.HASH_CACHE).write_text(json.dumps(cache))
+        seen = self.reads()
+        self.assertTrue(self.core.write_set("android", self.report))
+        self.assertEqual(len(self.saved(seen)), 4)
+        self.assertEqual(self.rig.read("boot")[:1], b"A")
+        self.assertEqual(self.rig.read("dtbo")[:1], b"a")
+
+    def test_a_damaged_cache_costs_a_read_and_nothing_else(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        for damage in ("not json", "[]", '{"version": 1}', '{"version": 2, "entries": {}}',
+                       json.dumps({"version": 1, "entries": {
+                           str(self.rig.sets / "linux/boot.img"): {"key": "x", "sha256": "0" * 64},
+                           str(self.rig.sets / "linux/dtbo.img"): {"key": [1, 2, 3, 4, 5], "sha256": "zz"}}})):
+            Path(self.core.HASH_CACHE).write_text(damage)
+            seen = self.reads()
+            self.assertTrue(self.core.capture_running_linux(self.report), damage)
+            self.assertEqual(self.events[-1][1], "linux-unchanged", damage)
+            self.assertEqual(len(self.saved(seen)), 2, damage)
+            self.assertEqual(len(json.loads(Path(self.core.HASH_CACHE).read_text())["entries"]), 2)
+
+    def test_a_removed_set_leaves_the_cache(self):
+        self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})
+        self.rig.save("android", "android", {"boot": b"A", "dtbo": b"a"})
+        self.rig.flash("boot", b"L")
+        self.rig.flash("dtbo", b"l")
+        self.later()
+        self.core.capture_running_linux(self.report)
+        for image in (self.rig.sets / "android").iterdir():
+            image.unlink()
+        (self.rig.sets / "android").rmdir()
+        self.core.capture_running_linux(self.report)
+        entries = json.loads(Path(self.core.HASH_CACHE).read_text())["entries"]
+        self.assertEqual(sorted(Path(path).parent.name for path in entries), ["linux", "linux"])
 
     def test_switch_writes_every_partition_and_verifies(self):
         self.rig.save("linux", "linux", {"boot": b"L", "dtbo": b"l"})

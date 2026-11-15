@@ -15,6 +15,8 @@ types them in:
   * Linux saves its own set at every boot (`capture_running_linux`), because
     at that moment the partitions are by definition the ones that just
     started it.  A kernel update therefore reaches the set on the next boot.
+    The partitions are read at every boot; the saved images only when they
+    are not the files they were the last time (`_set_hashes`).
   * The Android app does the same for Android, from Android, into this same
     directory on Linux's root filesystem.
 
@@ -27,6 +29,7 @@ import json
 import os
 import re
 import shutil
+import time
 
 from . import device
 
@@ -38,6 +41,9 @@ SETS_DIR = _CONFIG.get("sets_dir", "/var/lib/galaxy-companion/boot-sets")
 # Where a replaced set is kept until the next one replaces it.  Outside
 # SETS_DIR so that it is never mistaken for a system to boot.
 BACKUPS_DIR = _CONFIG.get("backups_dir", SETS_DIR.rstrip("/") + "-backups")
+# What each saved image hashed to, and the file it was (see _set_hashes).
+# Beside SETS_DIR, not inside it: the Android app reads and writes that one.
+HASH_CACHE = _CONFIG.get("hash_cache", SETS_DIR.rstrip("/") + "-hashes.json")
 
 # The rule that lets an active local session switch systems without a
 # password.  galaxy-companion-boot-noask writes and removes it; it is named here
@@ -181,16 +187,90 @@ def _label(set_id):
     return KNOWN_LABELS.get(set_id.lower(), set_id.capitalize())
 
 
-def _set_hashes(directory, lengths):
+def _file_key(path):
+    """What has to stay the same for a saved image to still hash the same.
+
+    The change time is the part that matters: nothing outside the kernel can
+    set it, so a file written in place, by this system or by Android with a
+    different idea of what time it is, gets another one.  A file replaced by
+    a rename gets another inode as well.
+    """
+    info = os.stat(path)
+    return [info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+
+
+def _settled(key):
+    """Whether a file with this key was last changed long enough ago.
+
+    A file written twice within one tick of the kernel's clock keeps the same
+    change time, so a hash taken in between would be remembered for contents
+    that are gone.  An image is therefore only remembered once its change
+    time is two seconds in the past; one changed "in the future", after the
+    clock went back, is read every time until the clock passes it.
+    """
+    return key[4] + 2_000_000_000 <= time.time_ns()
+
+
+def _load_hash_cache():
+    try:
+        with open(HASH_CACHE, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        entries = data["entries"] if data.get("version") == 1 else {}
+        return {path: entry for path, entry in entries.items()
+                if isinstance(entry, dict) and isinstance(entry.get("key"), list)
+                and re.fullmatch(r"[0-9a-f]{64}", str(entry.get("sha256", "")))}
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}
+
+
+def _store_hash_cache(cache):
+    """Best effort: a cache that cannot be written only costs the next read."""
+    temporary = f"{HASH_CACHE}.{os.getpid()}.tmp"
+    try:
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump({"version": 1, "entries": cache}, handle, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, HASH_CACHE)
+    except OSError:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+
+
+def _set_hashes(directory, lengths, cache=None):
+    """{partition: sha256} of a set's images, or {} when it is not complete.
+
+    With `cache`, an image that is still the same file as when it was last
+    hashed is not read again; `cache` is updated in place.  Without it every
+    image is read, which is what anything about to write partitions wants.
+    """
     out = {}
     for name, _size, _fallback in PARTITIONS:
         path = os.path.join(directory, f"{name}.img")
         try:
             if name not in lengths or os.path.getsize(path) != lengths[name]:
                 return {}
+            before = _file_key(path) if cache is not None else None
         except OSError:
             return {}
+        known = cache.get(path) if cache is not None else None
+        if known and known["key"] == before:
+            out[name] = known["sha256"]
+            continue
         out[name] = sha256(path)
+        if cache is not None:
+            try:
+                unchanged = _file_key(path) == before
+            except OSError:
+                unchanged = False
+            if unchanged and _settled(before):
+                cache[path] = {"key": before, "sha256": out[name]}
+            else:
+                # Written while it was being read, or only just: not a hash
+                # to remember.
+                cache.pop(path, None)
     return out
 
 
@@ -202,11 +282,20 @@ def set_ids():
         return []
 
 
-def discover(lengths=None):
+def discover(lengths=None, cached=False):
+    """The saved sets and what their images hash to.
+
+    `cached` lets an image that has not changed since it was last hashed keep
+    that hash.  It is for the two callers that only *look*: the boot capture,
+    which would otherwise read every saved set at every boot, and the window.
+    A switch never asks for it.
+    """
     lengths = sizes() if lengths is None else lengths
+    cache = _load_hash_cache() if cached else None
+    before = json.dumps(cache, sort_keys=True) if cached else None
     sets = []
     for set_id in set_ids():
-        hashes = _set_hashes(os.path.join(SETS_DIR, set_id), lengths)
+        hashes = _set_hashes(os.path.join(SETS_DIR, set_id), lengths, cache)
         sets.append({
             "id": set_id,
             "label": _label(set_id),
@@ -214,6 +303,12 @@ def discover(lengths=None):
             "complete": len(hashes) == len(PARTITIONS) and bool(hashes),
             "hashes": hashes,
         })
+    if cached:
+        # Forget images that are gone, so the file cannot grow without bound.
+        for path in [path for path in cache if not os.path.exists(path)]:
+            del cache[path]
+        if json.dumps(cache, sort_keys=True) != before:
+            _store_hash_cache(cache)
     return sets
 
 
@@ -334,7 +429,7 @@ def capture_running_linux(report=lambda *_args, **_kw: None):
     if not live:
         report("error", "partitions-missing")
         return False
-    sets = discover(lengths)
+    sets = discover(lengths, cached=True)
     name = running_system_name()
     current = identify(live, sets)
     if current is not None:
@@ -416,7 +511,7 @@ def status():
     """What the window shows.  Read-only: saving is the boot service's job."""
     lengths = sizes()
     live = live_hashes(lengths)
-    sets = discover(lengths)
+    sets = discover(lengths, cached=True)
     return {
         "current": identify(live, sets),
         "partitions": [name for name, _size, _fallback in ordered()],
@@ -451,6 +546,8 @@ def write_set(set_id, report):
     """
     recover_interrupted()
     lengths = sizes()
+    # Every image read now, not remembered: what is about to be written, and
+    # whether what it replaces exists anywhere else, must be what is on disk.
     sets = discover(lengths)
     entry = next((s for s in sets if s["id"] == set_id), None)
     if entry is None or not entry["complete"]:
