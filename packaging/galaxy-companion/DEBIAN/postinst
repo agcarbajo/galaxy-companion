@@ -51,6 +51,7 @@ if command -v systemctl >/dev/null 2>&1; then
 	systemctl enable galaxy-companion-boot-capture.service >/dev/null 2>&1 || true
 	systemctl restart galaxy-companion-charge-limit.service || true
 	systemctl --global enable galaxy-companion-haptics-enable.service >/dev/null 2>&1 || true
+	systemctl --global enable galaxy-companion-extension-recovery.service >/dev/null 2>&1 || true
 	systemctl --global enable galaxy-companion-update-check.timer >/dev/null 2>&1 || true
 fi
 

@@ -21,6 +21,7 @@ from .hardware import HardwareClient
 from .i18n import _, N_
 from .key_selector import KeyChooser, chord_label
 from .keyboard_diagnostics_ui import add_to_about as add_keyboard_diagnostics
+from .shell_extensions_ui import add_to_about as add_extension_restart
 from .spen_status import remote_status_phase
 
 
@@ -1383,4 +1384,5 @@ class CompanionWindow(Adw.ApplicationWindow):
             )
         if self.device.has("keyboard-cover"):
             add_keyboard_diagnostics(about)
+        add_extension_restart(about)
         about.present()

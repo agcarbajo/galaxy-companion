@@ -1,0 +1,13 @@
+[Unit]
+Description=Bring GNOME Shell extensions back after a Shell crash
+After=graphical-session.target
+PartOf=graphical-session.target
+# Only a crash or an unfinished restart leaves this file: otherwise nothing runs.
+ConditionPathExists=%h/.local/state/galaxy-companion/shell-extensions.json
+
+[Service]
+Type=exec
+ExecStart=/usr/libexec/galaxy-companion-shell-extensions recover
+
+[Install]
+WantedBy=graphical-session.target

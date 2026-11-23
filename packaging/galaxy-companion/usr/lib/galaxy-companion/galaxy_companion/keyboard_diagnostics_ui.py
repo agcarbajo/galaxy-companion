@@ -11,8 +11,8 @@ from gi.repository import Adw, Gio, GLib, Gtk
 from .i18n import _
 from .keyboard_diagnostics import collect_session
 
-def add_to_about(about):
-    # Place the action beside Debugging Information, inside Troubleshooting.
+def troubleshooting_group(about):
+    # Actions go beside Debugging Information, inside Troubleshooting.
     def find_group(widget):
         if isinstance(widget, Adw.ActionRow):
             target = widget.get_action_target_value()
@@ -28,7 +28,11 @@ def add_to_about(about):
                 return group
             child = child.get_next_sibling()
         return None
-    group = find_group(about)
+    return find_group(about)
+
+
+def add_to_about(about):
+    group = troubleshooting_group(about)
     if group is None:
         return None
     row = Adw.ActionRow(title=_("Save keyboard cover logs…"),

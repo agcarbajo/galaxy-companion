@@ -627,3 +627,24 @@ open without an app crash. Its UI showed One UI 8 and Ubuntu 26.04.1; the owner
 used it to return successfully to Ubuntu 26.04.1 (boot
 05f763e4-ebb0-42de-ba2c-a5efce2b8675). No version increment or ZIP regeneration is authorized for this batch.
 Release notes use short primary-feature bullets rather than long paragraphs.
+
+## GNOME extensions after a Shell crash
+
+If GNOME Shell dies within 60 seconds of starting, GNOME assumes an extension
+did it and sets `disable-user-extensions`. Nothing ever clears that key, so
+one crash from any cause, an extension or not, leaves every user extension off
+across logins and reboots.
+
+Galaxy Companion handles this on any GNOME device, with no device profile:
+
+- A drop-in on `org.gnome.Shell-disable-extensions.service` records that a
+  crash is what turned them off. A switch the person turned off leaves no
+  record and is never changed.
+- `galaxy-companion-extension-recovery.service` turns them back on in the next
+  session. It only runs when that record exists.
+- Three crashes in a row without a session that lasts two minutes count as a
+  crash loop: GNOME's protection stays and a notification says where to go.
+- About → Troubleshooting → *Restart desktop extensions* clears the switch and
+  reloads every extension, including the session mode's own. An extension in
+  the error state cannot be reloaded by GNOME Shell without logging out, and
+  the result says which ones need it.
