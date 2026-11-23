@@ -92,7 +92,10 @@ class DualBootToggle extends QuickToggle {
         this._target = null;
         this._busy = false;
         this.visible = false;
+        // The extension can be turned off while a helper is still running.
+        this._cancellable = new Gio.Cancellable();
 
+        this.connect('destroy', () => this._cancellable.cancel());
         this.connect('clicked', () => this._switch());
         this._refresh();
     }
@@ -109,7 +112,7 @@ class DualBootToggle extends QuickToggle {
 
     async _refresh() {
         try {
-            const {ok, stdout} = await this._run(['pkexec', STATUS_HELPER]);
+            const {ok, stdout} = await this._run(['pkexec', STATUS_HELPER], this._cancellable);
             if (!ok)
                 return;
 
@@ -128,7 +131,8 @@ class DualBootToggle extends QuickToggle {
             this.subtitle = this._target.label;
             this.visible = true;
         } catch (error) {
-            logError(error, 'dualboot: could not read the current system');
+            if (!error.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED))
+                logError(error, 'dualboot: could not read the current system');
         }
     }
 
@@ -147,7 +151,8 @@ class DualBootToggle extends QuickToggle {
             logError(error, 'dualboot: switch failed');
         } finally {
             this._busy = false;
-            this.checked = false;
+            if (!this._cancellable.is_cancelled())
+                this.checked = false;
         }
     }
 });
